@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.UniforLibrary">
+
+        <activity
+            android:name=".login.LoginActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.UniforLibrary">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".login.RegisterActivity"
+            android:exported="false"
+            android:label="Register"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".login.ForgotPasswordActivity"
+            android:exported="false"
+            android:label="Esqueci minha senha"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".chatbot.ChatActivity"
+            android:exported="false"
+            android:label="Chat de Ajuda"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".reservation.MyReservationsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".profile.EditProfileActivity"
+            android:exported="false"
+            android:label="Perfil"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".acervo.AcervoActivity"
+            android:exported="false"
+            android:label="Acervo"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".home.HomeActivity"
+            android:exported="false"
+            android:label="@string/title_activity_home"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".produzir.ProduzirActivity"
+            android:exported="false"
+            android:label="Submeter Produção"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".acervo.BookDetailActivity"
+            android:exported="false"
+            android:label="Detalhes da Obra"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".exposicoes.ExposicoesActivity"
+            android:exported="false"
+            android:label="Exposições"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".exposicoes.ExhibitionDetailActivity"
+            android:exported="false"
+            android:label="Detalhes da Exposição"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".exposicoes.ReadingActivity"
+            android:exported="false"
+            android:label="Leitura"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".emprestimos.EmprestimosActivity"
+            android:exported="false"
+            android:label="Meus Empréstimos"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".emprestimos.EmprestimoDetailActivity"
+            android:exported="false"
+            android:label="Detalhes do Empréstimo"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".homeAdm.HomeAdm_Activity"
+            android:exported="false"
+            android:label="Home Administrador"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".acervoAdm.AcervoAdm_Activity"
+            android:exported="false"
+            android:label="Gerenciar Acervo"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".exposicoesAdm.ExposicoesAdm_Activity"
+            android:exported="false"
+            android:label="Gerenciar Exposições"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".reservasAdm.ReservasADM_activity"
+            android:exported="false"
+            android:label="Gerenciar Reservas"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".relatoriosAdm.RelatoriosAdm_Activity"
+            android:exported="false"
+            android:label="Relatórios"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".exposicoesAdm.ExposicaoDetailAdm_Activity"
+            android:exported="false"
+            android:label="Detalhes da Exposição"
+            android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".notificacoes.NotificacoesActivity"
+            android:exported="false"
+            android:label="Notificações"
+            android:theme="@style/Theme.UniforLibrary" />
+
+    </application>
+
+</manifest>

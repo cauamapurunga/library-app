@@ -1,0 +1,50 @@
+# Android Studio / Gradle
+.idea/
+.gradle/
+/local.properties
+/.gradle
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Gradle wrapper
+gradle/wrapper/gradle-wrapper.jar
+
+# Kotlin
+*.kotlin_module
+
+# IntelliJ
+*.iml
+*.ipr
+*.iws
+
+# Generated files
+**/build/
+**/generated/
+**/intermediates/
+**/outputs/
+**/tmp/
+
+# Android packaging
+*.apk
+*.ap_
+
+# Signing
+*.jks
+*.keystore
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Optional: exclude local Android Studio run config
+/.idea/workspace.xml
+/.idea/tasks.xml
+
+# Keep the git dir out of git (not necessary but harmless)
+.git/
+
