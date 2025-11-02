@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
@@ -34,10 +35,25 @@ class ForgotPasswordActivity : ComponentActivity() {
 }
 
 @Composable
-fun ForgotPasswordScreen() {
+fun ForgotPasswordScreen(viewModel: AuthViewModel = viewModel()) {
     val context = LocalContext.current
-    var matricula by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
+    var emailOuMatricula by remember { mutableStateOf("") }
+    val authState by viewModel.authState.collectAsState()
+
+    // Observar mudanças no estado de autenticação
+    LaunchedEffect(authState) {
+        when (authState) {
+            is AuthState.Success -> {
+                Toast.makeText(context, (authState as AuthState.Success).message, Toast.LENGTH_LONG).show()
+                (context as? Activity)?.finish()
+            }
+            is AuthState.Error -> {
+                Toast.makeText(context, (authState as AuthState.Error).message, Toast.LENGTH_LONG).show()
+                viewModel.resetState()
+            }
+            else -> {}
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -57,37 +73,52 @@ fun ForgotPasswordScreen() {
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(32.dp))
-        OutlinedTextField(
-            value = matricula,
-            onValueChange = { matricula = it },
-            label = { Text("Matrícula") },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        )
         Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Digite sua matrícula ou email para receber um link de redefinição de senha",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
+            value = emailOuMatricula,
+            onValueChange = { emailOuMatricula = it },
+            label = { Text("Matrícula ou Email") },
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            enabled = authState !is AuthState.Loading
         )
         Spacer(modifier = Modifier.height(24.dp))
+
         Button(
-            onClick = {
-                Toast.makeText(context, "Link de redefinição enviado!", Toast.LENGTH_SHORT).show()
-                (context as? Activity)?.finish()
-            },
+            onClick = { viewModel.resetPassword(emailOuMatricula) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            enabled = authState !is AuthState.Loading
         ) {
-            Text("ENVIAR LINK", fontWeight = FontWeight.Bold)
+            if (authState is AuthState.Loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("ENVIAR LINK", fontWeight = FontWeight.Bold)
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = { context.startActivity(Intent(context, LoginActivity::class.java)) }) {
+
+        TextButton(
+            onClick = {
+                context.startActivity(Intent(context, LoginActivity::class.java))
+                (context as? Activity)?.finish()
+            },
+            enabled = authState !is AuthState.Loading
+        ) {
             Text("Voltar para o login")
         }
     }

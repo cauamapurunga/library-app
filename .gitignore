@@ -34,6 +34,10 @@ gradle/wrapper/gradle-wrapper.jar
 *.jks
 *.keystore
 
+# Firebase - NÃO COMMITAR!
+google-services.json
+app/google-services.json
+
 # OS files
 .DS_Store
 Thumbs.db
@@ -47,4 +51,3 @@ Thumbs.db
 
 # Keep the git dir out of git (not necessary but harmless)
 .git/
-
