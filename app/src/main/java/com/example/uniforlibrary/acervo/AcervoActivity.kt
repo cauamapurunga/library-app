@@ -3,8 +3,10 @@ package com.example.uniforlibrary.acervo
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.lifecycleScope
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
@@ -32,23 +35,85 @@ import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
-import com.example.uniforlibrary.reservation.MyReservationsActivity
+import com.example.uniforlibrary.reservation.*
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import kotlinx.coroutines.launch
+import java.util.Date
 
 class AcervoActivity : ComponentActivity() {
+    private val viewModel: BookViewModel by viewModels()
+    private val bookRepository = BookRepository()
+    private val reservationRepository = ReservationRepository()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        viewModel.loadBooks()
+
+        // Teste: Criar um livro e uma reserva
+        lifecycleScope.launch {
+            testCreateBookAndReservation()
+        }
+
         setContent {
             UniforLibraryTheme {
-                AcervoScreen()
+                AcervoScreen(viewModel = viewModel)
             }
+        }
+    }
+
+    private suspend fun testCreateBookAndReservation() {
+        try {
+            // 1. Criar um livro de teste
+            val book = Book(
+                title = "Clean Code",
+                author = "Robert C. Martin",
+                year = 2008,
+                category = "Programação",
+                description = "Um guia prático sobre como escrever código limpo",
+                totalCopies = 5,
+                availableCopies = 3,
+                rating = 4.8,
+                isDigital = true,
+                isPhysical = true
+            )
+
+            val addBookResult = bookRepository.addBook(book)
+            if (addBookResult.isSuccess) {
+                val bookId = addBookResult.getOrNull()!!
+                Toast.makeText(this, "Livro criado com ID: $bookId", Toast.LENGTH_LONG).show()
+
+                // 2. Criar uma reserva para este livro
+                val reservationResult = reservationRepository.createReservation(
+                    bookId = bookId,
+                    pickupDate = Date(), // Data atual
+                    durationDays = 7,
+                    observations = "Reserva de teste"
+                )
+
+                if (reservationResult.isSuccess) {
+                    Toast.makeText(this, "Reserva criada com sucesso!", Toast.LENGTH_LONG).show()
+
+                    // 3. Buscar todas as reservas do usuário
+                    val userReservations = reservationRepository.getUserReservations()
+                    if (userReservations.isSuccess) {
+                        val reservations = userReservations.getOrNull()!!
+                        Toast.makeText(this, "Você tem ${reservations.size} reservas", Toast.LENGTH_LONG).show()
+                    }
+                } else {
+                    Toast.makeText(this, "Erro ao criar reserva: ${reservationResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+            } else {
+                Toast.makeText(this, "Erro ao criar livro: ${addBookResult.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Erro: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AcervoScreen() {
+fun AcervoScreen(viewModel: BookViewModel) {
     val context = LocalContext.current
     var selectedItemIndex by remember { mutableIntStateOf(1) }
     val navigationItems = listOf(
@@ -59,7 +124,10 @@ fun AcervoScreen() {
         BottomNavItem("Produzir", Icons.Default.Add, 4),
         BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
     )
-    var currentScreen by remember { mutableStateOf("list") }
+    var searchQuery by remember { mutableStateOf("") }
+
+    val uiState by viewModel.uiState.collectAsState()
+    val books by viewModel.books.collectAsState()
 
     Scaffold(
         topBar = {
@@ -174,46 +242,55 @@ fun AcervoScreen() {
                 .fillMaxSize()
                 .padding(16.dp)
         ) {
-            when (currentScreen) {
-                "list" -> {
-                    Text(
-                        text = "Acervo",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
-                        placeholder = { Text("Pesquisar por título, autor ou ISBN") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "Acervo",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(modifier = Modifier.height(16.dp))
 
-                    BookCard(
-                        title = "PathOfExileLORE",
-                        subtitle = "Marak - 2020",
-                        rating = "★5",
-                        onReserveClick = { navigateToBookDetail(context) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    BookCard(
-                        title = "WOW",
-                        subtitle = "Aliens - 1977",
-                        rating = "★4.8",
-                        onReserveClick = { navigateToBookDetail(context) }
+            // Campo de busca com ação
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = {
+                    searchQuery = it
+                    viewModel.searchBooks(it)
+                },
+                placeholder = { Text("Pesquisar por título, autor ou ISBN") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            when (uiState) {
+                is BookUiState.Loading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 }
-
-                "add" -> {
-                    AddEditContent(
-                        title = "Adicionar Acervo",
-                        onBack = { currentScreen = "list" },
-                        onConfirm = {}
+                is BookUiState.Error -> {
+                    Text(
+                        text = (uiState as BookUiState.Error).message,
+                        color = Color.Red,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
+                }
+                else -> {
+                    books.forEach { book ->
+                        BookCard(
+                            title = book.title,
+                            subtitle = "${book.author} - ${book.year}",
+                            rating = "★${book.rating}",
+                            onReserveClick = {
+                                val intent = Intent(context, BookDetailActivity::class.java)
+                                intent.putExtra("bookId", book.id)
+                                context.startActivity(intent)
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
             }
         }
@@ -353,6 +430,6 @@ data class BottomNavItem(
 @Composable
 fun AcervoScreenPreview() {
     UniforLibraryTheme {
-        AcervoScreen()
+        AcervoScreen(viewModel = BookViewModel())
     }
 }

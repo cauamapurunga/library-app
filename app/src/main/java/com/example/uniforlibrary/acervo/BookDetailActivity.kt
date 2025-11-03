@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -36,11 +37,23 @@ import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
 class BookDetailActivity : ComponentActivity() {
+    private val viewModel: BookViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Pegar o ID do livro dos extras
+        val bookId = intent.getStringExtra("bookId") ?: return finish()
+
+        // Carregar detalhes do livro
+        viewModel.selectBook(bookId)
+
         setContent {
             UniforLibraryTheme {
-                BookDetailScreen(onBack = { finish() })
+                BookDetailScreen(
+                    viewModel = viewModel,
+                    onBack = { finish() }
+                )
             }
         }
     }
@@ -48,7 +61,10 @@ class BookDetailActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookDetailScreen(onBack: () -> Unit) {
+fun BookDetailScreen(
+    viewModel: BookViewModel,
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
     var selectedItemIndex by remember { mutableIntStateOf(1) }
     val navigationItems = listOf(
@@ -60,6 +76,9 @@ fun BookDetailScreen(onBack: () -> Unit) {
         BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
     )
     var showBottomSheet by remember { mutableStateOf(false) }
+
+    val uiState by viewModel.uiState.collectAsState()
+    val book by viewModel.selectedBook.collectAsState()
 
     Scaffold(
         topBar = {
