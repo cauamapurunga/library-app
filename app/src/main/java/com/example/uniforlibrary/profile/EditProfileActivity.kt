@@ -1,5 +1,6 @@
 package com.example.uniforlibrary.profile
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -7,11 +8,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.uniforlibrary.login.LoginActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
 class EditProfileActivity : ComponentActivity() {
@@ -52,6 +57,7 @@ fun EditProfileScreen() {
     var showPhotoDialog by remember { mutableStateOf(false) }
     var showEditEmailDialog by remember { mutableStateOf(false) }
     var showEditPhoneDialog by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
     var tempEmail by remember { mutableStateOf("") }
     var tempPhone by remember { mutableStateOf("") }
 
@@ -77,7 +83,8 @@ fun EditProfileScreen() {
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -218,6 +225,31 @@ fun EditProfileScreen() {
                     disabledTrailingIconColor = MaterialTheme.colorScheme.primary
                 ),
                 enabled = false
+            )
+        }
+
+        // Logout Button (Fixed at bottom)
+        OutlinedButton(
+            onClick = { showLogoutDialog = true },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.error
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
+        ) {
+            Icon(
+                Icons.Default.ExitToApp,
+                contentDescription = "Sair",
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Sair da Conta",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }
@@ -401,6 +433,69 @@ fun EditProfileScreen() {
                         enabled = tempPhone.length >= 10
                     ) {
                         Text("Salvar")
+                    }
+                }
+            }
+        )
+    }
+
+    // Logout Confirmation Dialog
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            icon = {
+                Icon(
+                    Icons.Default.ExitToApp,
+                    contentDescription = "Sair",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Sair da Conta",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Deseja realmente sair da sua conta? Você precisará fazer login novamente para acessar.",
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            showLogoutDialog = false
+                            // TODO: Limpar dados de sessão/SharedPreferences
+
+                            // Navegar para tela de login e limpar backstack
+                            val intent = Intent(context, LoginActivity::class.java)
+                            intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                            context.startActivity(intent)
+                            (context as? ComponentActivity)?.finish()
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Sim, Sair")
+                    }
+
+                    OutlinedButton(
+                        onClick = { showLogoutDialog = false },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    ) {
+                        Text("Não")
                     }
                 }
             }
