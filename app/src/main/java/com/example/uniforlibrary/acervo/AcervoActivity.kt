@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -42,6 +44,39 @@ class AcervoActivity : ComponentActivity() {
             UniforLibraryTheme {
                 AcervoScreen()
             }
+        }
+    }
+}
+
+@Composable
+private fun FilterSection() {
+    Column {
+        OutlinedTextField(
+            value = "",
+            onValueChange = {},
+            placeholder = { Text("Pesquisar por título, autor ou ISBN") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = "",
+                onValueChange = {},
+                label = { Text("Categoria") },
+                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                modifier = Modifier.weight(1f),
+                readOnly = true
+            )
+            OutlinedTextField(
+                value = "",
+                onValueChange = {},
+                label = { Text("Disponibilidade") },
+                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                modifier = Modifier.weight(1f),
+                readOnly = true
+            )
         }
     }
 }
@@ -183,14 +218,7 @@ fun AcervoScreen() {
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
-                        placeholder = { Text("Pesquisar por título, autor ou ISBN") },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    FilterSection()
                     Spacer(modifier = Modifier.height(16.dp))
 
                     BookCard(
