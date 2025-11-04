@@ -237,17 +237,40 @@ fun ProduzirScreen(onBack: () -> Unit) {
             if (showDialog) {
                 AlertDialog(
                     onDismissRequest = { showDialog = false },
+                    title = {
+                        Text(
+                            "Confirmação",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Text(
+                            "Tem certeza que quer submeter essa produção? Após a confirmação o resultado será entregue em até 7 dias úteis.",
+                            fontSize = 16.sp
+                        )
+                    },
                     confirmButton = {
-                        TextButton(onClick = {
-                            showDialog = false
-                            Toast.makeText(context, "Envio realizado", Toast.LENGTH_LONG).show()
-                            onBack()
-                        }) {
-                            Text("OK", color = MaterialTheme.colorScheme.primary)
+                        Button(
+                            onClick = {
+                                showDialog = false
+                                Toast.makeText(context, "Envio realizado com sucesso!", Toast.LENGTH_LONG).show()
+                                onBack()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text("Sim")
                         }
                     },
-                    title = { Text("Envio realizado") },
-                    text = { Text("Sua produção foi enviada com sucesso! O resultado será entregue em até 7 dias úteis.") }
+                    dismissButton = {
+                        OutlinedButton(
+                            onClick = { showDialog = false }
+                        ) {
+                            Text("Não")
+                        }
+                    }
                 )
             }
         }
@@ -311,12 +334,30 @@ fun CategoriaDropdown(selected: String, onSelect: (String) -> Unit) {
                     unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
                 )
             )
-            DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                categorias.forEach {
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+            ) {
+                categorias.forEach { categoria ->
                     DropdownMenuItem(
-                        text = { Text(it) },
+                        text = {
+                            Column {
+                                Text(
+                                    text = categoria,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (categoria == "Escrever por SCAMPER") {
+                                    Text(
+                                        text = "Substitua, Combine, Adapte, Modifique, Procure outros usos, Elimine, Rearranje",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        },
                         onClick = {
-                            onSelect(it)
+                            onSelect(categoria)
                             expanded = false
                         }
                     )

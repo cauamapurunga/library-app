@@ -6,6 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,6 +18,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -46,6 +49,14 @@ class ExposicoesAdm_Activity : ComponentActivity() {
 @Composable
 fun ExposicoesAdmScreen() {
     val context = LocalContext.current
+    var searchText by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
+    var selectedAvailability by remember { mutableStateOf("") }
+    var showCategoryDropdown by remember { mutableStateOf(false) }
+    var showAvailabilityDropdown by remember { mutableStateOf(false) }
+
+    val categories = listOf("Todos", "Cordel", "Artigo", "TCC", "Conto", "Produção")
+    val availabilityOptions = listOf("Todos", "Pendente", "Aprovado", "Reprovado")
 
     val submissions = remember {
         mutableStateListOf(
@@ -84,24 +95,120 @@ fun ExposicoesAdmScreen() {
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
         ) {
-            item {
-                Text("Gerencie as submissões dos alunos que desejam expor seus trabalhos para avaliação e validação no nosso acervo.", fontSize = 14.sp)
-            }
-            items(submissions) { submission ->
-                SubmissionCard(
-                    submission = submission,
-                    onStatusChange = { newStatus ->
-                        val index = submissions.indexOf(submission)
-                        if (index != -1) {
-                            submissions[index] = submission.copy(status = newStatus)
-                        }
-                    },
-                    onViewClick = { navigateToExposicaoDetailAdm(context) }
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    "Gerencie as submissões dos alunos que desejam expor seus trabalhos para avaliação e validação no nosso acervo.",
+                    fontSize = 14.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
+
+                // Search and Filter Section
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = { Text("Pesquisar por título ou autor") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = selectedCategory.ifEmpty { "Todos" },
+                            onValueChange = {},
+                            label = { Text("Categoria") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showCategoryDropdown = true },
+                            readOnly = true
+                        )
+                        DropdownMenu(
+                            expanded = showCategoryDropdown,
+                            onDismissRequest = { showCategoryDropdown = false },
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.extraSmall)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category) },
+                                    onClick = {
+                                        selectedCategory = category
+                                        showCategoryDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = selectedAvailability.ifEmpty { "Todos" },
+                            onValueChange = {},
+                            label = { Text("Disponibilidade") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showAvailabilityDropdown = true },
+                            readOnly = true
+                        )
+                        DropdownMenu(
+                            expanded = showAvailabilityDropdown,
+                            onDismissRequest = { showAvailabilityDropdown = false },
+                            modifier = Modifier
+                                .clip(MaterialTheme.shapes.extraSmall)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            availabilityOptions.forEach { availability ->
+                                DropdownMenuItem(
+                                    text = { Text(availability) },
+                                    onClick = {
+                                        selectedAvailability = availability
+                                        showAvailabilityDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(submissions) { submission ->
+                    SubmissionCard(
+                        submission = submission,
+                        onStatusChange = { newStatus ->
+                            val index = submissions.indexOf(submission)
+                            if (index != -1) {
+                                submissions[index] = submission.copy(status = newStatus)
+                            }
+                        },
+                        onViewClick = { navigateToExposicaoDetailAdm(context) }
+                    )
+                }
             }
         }
     }
@@ -109,6 +216,87 @@ fun ExposicoesAdmScreen() {
 
 @Composable
 fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onViewClick: () -> Unit) {
+    var showApproveDialog by remember { mutableStateOf(false) }
+    var showRejectDialog by remember { mutableStateOf(false) }
+
+    if (showApproveDialog) {
+        AlertDialog(
+            onDismissRequest = { showApproveDialog = false },
+            title = {
+                Text(
+                    "Confirmação",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Tem certeza que deseja aprovar a obra ao acervo?",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showApproveDialog = false
+                        onStatusChange("Aprovado")
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showApproveDialog = false }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
+    if (showRejectDialog) {
+        AlertDialog(
+            onDismissRequest = { showRejectDialog = false },
+            title = {
+                Text(
+                    "Confirmação",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Tem certeza que deseja reprovar a obra?",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRejectDialog = false
+                        onStatusChange("Reprovado")
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showRejectDialog = false }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -139,8 +327,16 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
                 Spacer(modifier = Modifier.height(8.dp))
                 Row {
                     TextButton(onClick = onViewClick) { Text("Ver") }
-                    TextButton(onClick = { onStatusChange("Aprovado") }) { Text("Aprovar", color = Color(0xFF388E3C)) }
-                    TextButton(onClick = { onStatusChange("Reprovado") }) { Text("Reprovar", color = Color.Red) }
+                    TextButton(
+                        onClick = { showApproveDialog = true }
+                    ) {
+                        Text("Aprovar", color = Color(0xFF388E3C))
+                    }
+                    TextButton(
+                        onClick = { showRejectDialog = true }
+                    ) {
+                        Text("Reprovar", color = Color.Red)
+                    }
                 }
             }
         }

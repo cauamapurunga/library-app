@@ -202,6 +202,127 @@ fun MyReservationsScreen() {
 
 @Composable
 fun ReservationCard(reservation: ReservationItem) {
+    var showCancelDialog by remember { mutableStateOf(false) }
+    var showReserveDialog by remember { mutableStateOf(false) }
+    var showRenewDialog by remember { mutableStateOf(false) }
+
+    if (showCancelDialog) {
+        AlertDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = {
+                Text(
+                    "Confirmação",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Tem certeza que quer cancelar a sua reserva?",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCancelDialog = false
+                        // TODO: Implement cancel reservation
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showCancelDialog = false }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
+    if (showReserveDialog) {
+        AlertDialog(
+            onDismissRequest = { showReserveDialog = false },
+            title = {
+                Text(
+                    "Confirmação",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Tem certeza que quer reservar este livro?",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showReserveDialog = false
+                        // TODO: Implement reserve book
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showReserveDialog = false }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
+    if (showRenewDialog) {
+        AlertDialog(
+            onDismissRequest = { showRenewDialog = false },
+            title = {
+                Text(
+                    "Confirmação",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Tem certeza que quer renovar este livro?",
+                    fontSize = 16.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRenewDialog = false
+                        // TODO: Implement renew book
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("Sim")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { showRenewDialog = false }
+                ) {
+                    Text("Não")
+                }
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -282,7 +403,7 @@ fun ReservationCard(reservation: ReservationItem) {
                     when (reservation.status) {
                         "Aguardando" -> {
                             OutlinedButton(
-                                onClick = { /* TODO: Cancelar */ },
+                                onClick = { showCancelDialog = true },
                                 modifier = Modifier.height(32.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(
@@ -301,7 +422,7 @@ fun ReservationCard(reservation: ReservationItem) {
                         }
                         "Devolvido" -> {
                             Button(
-                                onClick = { /* TODO: Renovar */ },
+                                onClick = { showRenewDialog = true },
                                 modifier = Modifier.height(32.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
@@ -320,7 +441,7 @@ fun ReservationCard(reservation: ReservationItem) {
                         }
                         "Disponível" -> {
                             Button(
-                                onClick = { /* TODO: Reservar */ },
+                                onClick = { showReserveDialog = true },
                                 modifier = Modifier.height(32.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
