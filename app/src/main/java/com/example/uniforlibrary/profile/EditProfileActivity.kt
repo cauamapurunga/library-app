@@ -2,6 +2,7 @@ package com.example.uniforlibrary.profile
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
@@ -12,11 +13,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,10 +29,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.login.LoginActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
@@ -50,16 +58,70 @@ class EditProfileActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditProfileScreen() {
+fun EditProfileScreen(viewModel: ProfileViewModel = viewModel()) {
     val context = LocalContext.current
-    var email by remember { mutableStateOf("clodoaldo@unifor.br") }
-    var phone by remember { mutableStateOf("(85) 99999-9999") }
+    val profileState by viewModel.profileState.collectAsState()
+    val userProfile by viewModel.userProfile.collectAsState()
+
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var nome by remember { mutableStateOf("") }
+    var matricula by remember { mutableStateOf("") }
+    var curso by remember { mutableStateOf("") }
+
     var showPhotoDialog by remember { mutableStateOf(false) }
     var showEditEmailDialog by remember { mutableStateOf(false) }
     var showEditPhoneDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var tempEmail by remember { mutableStateOf("") }
     var tempPhone by remember { mutableStateOf("") }
+    var currentPassword by remember { mutableStateOf("") }
+    var showPassword by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Atualizar dados quando o perfil for carregado
+    LaunchedEffect(userProfile) {
+        userProfile?.let { profile ->
+            email = profile.email
+            phone = formatPhoneNumber(profile.telefone)
+            nome = profile.nome
+            matricula = profile.matricula
+            curso = profile.curso
+        }
+    }
+
+    // Observar mudanças de estado
+    LaunchedEffect(profileState) {
+        when (profileState) {
+            is ProfileState.Loading -> {
+                isLoading = true
+            }
+            is ProfileState.Success -> {
+                isLoading = false
+                Toast.makeText(
+                    context,
+                    (profileState as ProfileState.Success).message,
+                    Toast.LENGTH_SHORT
+                ).show()
+                viewModel.resetState()
+            }
+            is ProfileState.Error -> {
+                isLoading = false
+                Toast.makeText(
+                    context,
+                    (profileState as ProfileState.Error).message,
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetState()
+            }
+            is ProfileState.ProfileLoaded -> {
+                isLoading = false
+            }
+            else -> {
+                isLoading = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -126,7 +188,7 @@ fun EditProfileScreen() {
 
             // User Name
             Text(
-                text = "CLODOALDO DA SILVA ROCHA",
+                text = nome.uppercase(),
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
@@ -136,18 +198,22 @@ fun EditProfileScreen() {
             Spacer(modifier = Modifier.height(4.dp))
 
             // User Details
-            Text(
-                text = "Análise e Desen. de Sistemas",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "Matrícula: 2025101",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
-            )
+            if (curso.isNotBlank()) {
+                Text(
+                    text = curso,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+            }
+            if (matricula.isNotBlank()) {
+                Text(
+                    text = "Matrícula: $matricula",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center
+                )
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -241,7 +307,7 @@ fun EditProfileScreen() {
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.error)
         ) {
             Icon(
-                Icons.Default.ExitToApp,
+                Icons.AutoMirrored.Filled.ExitToApp,
                 contentDescription = "Sair",
                 modifier = Modifier.size(20.dp)
             )
@@ -321,7 +387,12 @@ fun EditProfileScreen() {
     // Edit Email Dialog
     if (showEditEmailDialog) {
         AlertDialog(
-            onDismissRequest = { showEditEmailDialog = false },
+            onDismissRequest = {
+                showEditEmailDialog = false
+                tempEmail = ""
+                currentPassword = ""
+                showPassword = false
+            },
             title = {
                 Text(
                     text = "Editar Email",
@@ -336,10 +407,43 @@ fun EditProfileScreen() {
                     OutlinedTextField(
                         value = tempEmail,
                         onValueChange = { tempEmail = it },
-                        label = { Text("Email") },
+                        label = { Text("Novo Email") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                    )
+
+                    OutlinedTextField(
+                        value = currentPassword,
+                        onValueChange = { currentPassword = it },
+                        label = { Text("Senha Atual") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        singleLine = true,
+                        visualTransformation = if (showPassword)
+                            VisualTransformation.None
+                        else
+                            PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        trailingIcon = {
+                            IconButton(onClick = { showPassword = !showPassword }) {
+                                Icon(
+                                    if (showPassword) Icons.Default.Visibility
+                                    else Icons.Default.VisibilityOff,
+                                    contentDescription = if (showPassword)
+                                        "Ocultar senha"
+                                    else
+                                        "Mostrar senha"
+                                )
+                            }
+                        }
+                    )
+
+                    Text(
+                        text = "Por segurança, você precisa confirmar sua senha para alterar o email.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
@@ -349,20 +453,36 @@ fun EditProfileScreen() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
-                        onClick = { showEditEmailDialog = false },
+                        onClick = {
+                            showEditEmailDialog = false
+                            tempEmail = ""
+                            currentPassword = ""
+                            showPassword = false
+                        },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Cancelar")
                     }
                     Button(
                         onClick = {
-                            email = tempEmail
+                            viewModel.updateEmail(tempEmail, currentPassword)
                             showEditEmailDialog = false
+                            tempEmail = ""
+                            currentPassword = ""
+                            showPassword = false
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = tempEmail.isNotBlank() && currentPassword.isNotBlank() && !isLoading
                     ) {
-                        Text("Salvar")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text("Salvar")
+                        }
                     }
                 }
             }
@@ -372,7 +492,10 @@ fun EditProfileScreen() {
     // Edit Phone Dialog
     if (showEditPhoneDialog) {
         AlertDialog(
-            onDismissRequest = { showEditPhoneDialog = false },
+            onDismissRequest = {
+                showEditPhoneDialog = false
+                tempPhone = ""
+            },
             title = {
                 Text(
                     text = "Editar Telefone",
@@ -392,14 +515,15 @@ fun EditProfileScreen() {
                                 tempPhone = newValue
                             }
                         },
-                        label = { Text("Telefone") },
+                        label = { Text("Telefone (opcional)") },
                         placeholder = { Text("85999999999") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        singleLine = true
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                     )
                     Text(
-                        text = "Digite apenas números (DDD + número)",
+                        text = "Digite apenas números (DDD + número). Campo opcional.",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -411,28 +535,32 @@ fun EditProfileScreen() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     TextButton(
-                        onClick = { showEditPhoneDialog = false },
+                        onClick = {
+                            showEditPhoneDialog = false
+                            tempPhone = ""
+                        },
                         modifier = Modifier.weight(1f)
                     ) {
                         Text("Cancelar")
                     }
                     Button(
                         onClick = {
-                            // Formatar o telefone
-                            phone = if (tempPhone.length == 11) {
-                                "(${tempPhone.substring(0, 2)}) ${tempPhone.substring(2, 7)}-${tempPhone.substring(7)}"
-                            } else if (tempPhone.length == 10) {
-                                "(${tempPhone.substring(0, 2)}) ${tempPhone.substring(2, 6)}-${tempPhone.substring(6)}"
-                            } else {
-                                tempPhone
-                            }
+                            viewModel.updatePhone(tempPhone)
                             showEditPhoneDialog = false
+                            tempPhone = ""
                         },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
-                        enabled = tempPhone.length >= 10
+                        enabled = !isLoading
                     ) {
-                        Text("Salvar")
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = Color.White
+                            )
+                        } else {
+                            Text("Salvar")
+                        }
                     }
                 }
             }
@@ -445,7 +573,7 @@ fun EditProfileScreen() {
             onDismissRequest = { showLogoutDialog = false },
             icon = {
                 Icon(
-                    Icons.Default.ExitToApp,
+                    Icons.AutoMirrored.Filled.ExitToApp,
                     contentDescription = "Sair",
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(32.dp)
@@ -472,7 +600,7 @@ fun EditProfileScreen() {
                     Button(
                         onClick = {
                             showLogoutDialog = false
-                            // TODO: Limpar dados de sessão/SharedPreferences
+                            viewModel.logout()
 
                             // Navegar para tela de login e limpar backstack
                             val intent = Intent(context, LoginActivity::class.java)
@@ -500,6 +628,18 @@ fun EditProfileScreen() {
                 }
             }
         )
+    }
+}
+
+// Função auxiliar para formatar telefone
+fun formatPhoneNumber(phone: String): String {
+    if (phone.isBlank()) return ""
+
+    val digits = phone.filter { it.isDigit() }
+    return when (digits.length) {
+        11 -> "(${digits.substring(0, 2)}) ${digits.substring(2, 7)}-${digits.substring(7)}"
+        10 -> "(${digits.substring(0, 2)}) ${digits.substring(2, 6)}-${digits.substring(6)}"
+        else -> phone
     }
 }
 
