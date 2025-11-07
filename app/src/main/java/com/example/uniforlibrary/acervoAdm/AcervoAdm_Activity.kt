@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,9 +28,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.uniforlibrary.acervoAdm.model.AcervoAdm
+import com.example.uniforlibrary.acervoAdm.viewmodel.AcervoAdmViewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.Chatbot
@@ -37,11 +41,13 @@ import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
 class AcervoAdm_Activity : ComponentActivity() {
+    private val viewModel: AcervoAdmViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             UniforLibraryTheme {
-                AcervoAdmScreen()
+                AcervoAdmScreen(viewModel)
             }
         }
     }
@@ -49,11 +55,30 @@ class AcervoAdm_Activity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AcervoAdmScreen() {
+fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
     val context = LocalContext.current
     var currentScreen by remember { mutableStateOf("list") }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var bookToModify by remember { mutableStateOf<Book?>(null) }
+
+    // Estados para os filtros
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Todas") }
+    var selectedAvailability by remember { mutableStateOf("Todas") }
+
+    // Coletar estados do ViewModel
+    val acervos by viewModel.acervos.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+
+    // Efeito para aplicar filtros
+    LaunchedEffect(searchQuery, selectedCategory, selectedAvailability) {
+        viewModel.filterAcervos(
+            searchQuery = searchQuery,
+            categoria = if (selectedCategory == "Todas") null else selectedCategory,
+            disponibilidade = if (selectedAvailability == "Todas") null else selectedAvailability
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -72,7 +97,7 @@ fun AcervoAdmScreen() {
                 navigationIcon = {
                      if (currentScreen != "list") {
                         IconButton(onClick = { currentScreen = "list" }) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
                         }
                     }
                 },
@@ -107,50 +132,88 @@ fun AcervoAdmScreen() {
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
-        val books = remember {
-            mutableStateListOf(
-                Book("PathExileLORE", "Narak - 2020", "★5"),
-                Book("WOW", "Aliens - 1977", "★4.8")
-            )
-        }
+        Box(modifier = Modifier.padding(innerPadding)) {
+            when (currentScreen) {
+                "list" -> {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            FilterSectionAdmin(
+                                searchQuery = searchQuery,
+                                onSearchQueryChange = { value -> searchQuery = value },
+                                selectedCategory = selectedCategory,
+                                selectedAvailability = selectedAvailability,
+                                onCategorySelect = { value -> selectedCategory = value },
+                                onAvailabilitySelect = { value -> selectedAvailability = value }
+                            )
+                        }
 
-        when (currentScreen) {
-            "list" -> {
-                LazyColumn(
-                    modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    item { FilterSectionAdmin() }
-                    items(books) { book ->
-                        AdminBookCard(
-                            book = book,
-                            onEditClick = {
-                                bookToModify = book
-                                currentScreen = "edit"
-                            },
-                            onRemoveClick = {
-                                bookToModify = book
-                                showRemoveDialog = true
+                        if (isLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
                             }
-                        )
+                        } else if (error != null) {
+                            item {
+                                Text(
+                                    text = error ?: "Erro ao carregar acervo",
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(16.dp)
+                                )
+                            }
+                        } else {
+                            items(acervos) { acervo ->
+                                AdminBookCard(
+                                    book = Book(
+                                        title = acervo.titulo,
+                                        author = "${acervo.autor} - ${acervo.ano}",
+                                        rating = acervo.classificacao.toString()
+                                    ),
+                                    onEditClick = {
+                                        bookToModify = Book(
+                                            title = acervo.titulo,
+                                            author = "${acervo.autor} - ${acervo.ano}",
+                                            rating = acervo.classificacao.toString()
+                                        )
+                                        currentScreen = "edit"
+                                    },
+                                    onRemoveClick = {
+                                        bookToModify = Book(
+                                            title = acervo.titulo,
+                                            author = "${acervo.autor} - ${acervo.ano}",
+                                            rating = acervo.classificacao.toString()
+                                        )
+                                        showRemoveDialog = true
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            }
-            "add" -> {
-                AddEditBookScreen(
-                    modifier = Modifier.padding(innerPadding),
-                    onBack = { currentScreen = "list" },
-                    onConfirm = { currentScreen = "list" },
-                    book = null
-                )
-            }
-            "edit" -> {
-                AddEditBookScreen(
-                    modifier = Modifier.padding(innerPadding),
-                    onBack = { currentScreen = "list" },
-                    onConfirm = { currentScreen = "list" },
-                    book = bookToModify
-                )
+                "add" -> {
+                    AddEditBookScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { currentScreen = "list" },
+                        onConfirm = { currentScreen = "list" },
+                        book = null
+                    )
+                }
+                "edit" -> {
+                    AddEditBookScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onBack = { currentScreen = "list" },
+                        onConfirm = { currentScreen = "list" },
+                        book = bookToModify
+                    )
+                }
             }
         }
 
@@ -161,7 +224,7 @@ fun AcervoAdmScreen() {
                 confirmButton = {
                     TextButton(onClick = {
                         showRemoveDialog = false
-                        books.remove(bookToModify)
+                        viewModel.removeAcervo(bookToModify)
                         Toast.makeText(context, "Obra removida!", Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "Sim", tint = MaterialTheme.colorScheme.primary)
@@ -297,11 +360,25 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
 }
 
 @Composable
-fun FilterSectionAdmin() {
+fun FilterSectionAdmin(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    selectedCategory: String,
+    selectedAvailability: String,
+    onCategorySelect: (String) -> Unit,
+    onAvailabilitySelect: (String) -> Unit
+) {
+    var showCategoryMenu by remember { mutableStateOf(false) }
+    var showAvailabilityMenu by remember { mutableStateOf(false) }
+
+    val categories = listOf("Todas", "Literatura", "Ciências", "Tecnologia", "História", "Geografia",
+                          "Artes", "Filosofia", "Sociologia", "Engenharia", "Matemática", "Outros")
+    val availabilityOptions = listOf("Todas", "Disponível", "Indisponível", "Digital")
+
     Column {
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
             placeholder = { Text("Pesquisar por título, autor ou ISBN") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
@@ -309,22 +386,59 @@ fun FilterSectionAdmin() {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                label = { Text("Categoria") },
-                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                modifier = Modifier.weight(1f),
-                readOnly = true
-            )
-            OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                label = { Text("Disponibilidade") },
-                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                modifier = Modifier.weight(1f),
-                readOnly = true
-            )
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedTextField(
+                    value = selectedCategory,
+                    onValueChange = {},
+                    label = { Text("Categoria") },
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showCategoryMenu = true },
+                    readOnly = true
+                )
+                DropdownMenu(
+                    expanded = showCategoryMenu,
+                    onDismissRequest = { showCategoryMenu = false }
+                ) {
+                    categories.forEach { category ->
+                        DropdownMenuItem(
+                            text = { Text(category) },
+                            onClick = {
+                                onCategorySelect(category)
+                                showCategoryMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.weight(1f)) {
+                OutlinedTextField(
+                    value = selectedAvailability,
+                    onValueChange = {},
+                    label = { Text("Disponibilidade") },
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showAvailabilityMenu = true },
+                    readOnly = true
+                )
+                DropdownMenu(
+                    expanded = showAvailabilityMenu,
+                    onDismissRequest = { showAvailabilityMenu = false }
+                ) {
+                    availabilityOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                onAvailabilitySelect(option)
+                                showAvailabilityMenu = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -354,16 +468,13 @@ fun AdminBookCard(book: Book, onEditClick: () -> Unit, onRemoveClick: () -> Unit
 }
 
 // --- Modelos e Navegação ---
-data class Book(val title: String, val author: String, val rating: String)
+data class Book(
+    val title: String,
+    val author: String,
+    val rating: String
+)
 
-private fun navigateToProfile(context: Context) {
+// Helpers
+fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
-}
-
-@Preview(showBackground = true)
-@Composable
-fun AcervoAdmScreenPreview() {
-    UniforLibraryTheme {
-        AcervoAdmScreen()
-    }
 }
