@@ -5,10 +5,17 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,12 +26,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.uniforlibrary.acervo.model.Acervo
+import androidx.compose.foundation.text.KeyboardOptions
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.acervo.viewmodel.AcervoViewModel
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
@@ -36,11 +47,13 @@ import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
 class AcervoActivity : ComponentActivity() {
+    private val viewModel: AcervoViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             UniforLibraryTheme {
-                AcervoScreen()
+                AcervoScreen(viewModel)
             }
         }
     }
@@ -48,9 +61,14 @@ class AcervoActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AcervoScreen() {
+fun AcervoScreen(viewModel: AcervoViewModel) {
     val context = LocalContext.current
     var selectedItemIndex by remember { mutableIntStateOf(1) }
+    var searchQuery by remember { mutableStateOf("") }
+    val acervos by viewModel.acervos.collectAsStateWithLifecycle()
+    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+
     val navigationItems = listOf(
         BottomNavItem("Home", Icons.Default.Home, 0),
         BottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1),
@@ -164,7 +182,7 @@ fun AcervoScreen() {
             }
         },
         floatingActionButton = {
-             Chatbot(context = context)
+            Chatbot(context = context)
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
@@ -176,43 +194,186 @@ fun AcervoScreen() {
         ) {
             when (currentScreen) {
                 "list" -> {
-                    Text(
-                        text = "Acervo",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Acervo",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        IconButton(onClick = { currentScreen = "add" }) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Adicionar acervo",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(16.dp))
+
+                    // Campo de busca
                     OutlinedTextField(
-                        value = "",
-                        onValueChange = {},
+                        value = searchQuery,
+                        onValueChange = {
+                            searchQuery = it
+                            if (it.isBlank()) {
+                                viewModel.loadAcervos()
+                            } else {
+                                viewModel.searchAcervos(it)
+                            }
+                        },
                         placeholder = { Text("Pesquisar por título, autor ou ISBN") },
                         leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    BookCard(
-                        title = "PathOfExileLORE",
-                        subtitle = "Marak - 2020",
-                        rating = "★5",
-                        onReserveClick = { navigateToBookDetail(context) }
-                    )
                     Spacer(modifier = Modifier.height(8.dp))
-                    BookCard(
-                        title = "WOW",
-                        subtitle = "Aliens - 1977",
-                        rating = "★4.8",
-                        onReserveClick = { navigateToBookDetail(context) }
-                    )
+
+                    // Filtros
+                    var showFilters by remember { mutableStateOf(false) }
+                    var selectedCategoria by remember { mutableStateOf<String?>(null) }
+                    var showSomenteDisponiveis by remember { mutableStateOf(false) }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showFilters = !showFilters }
+                        ) {
+                            Icon(
+                                Icons.Default.FilterList,
+                                contentDescription = "Filtros"
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Filtros")
+                        }
+
+                        if (selectedCategoria != null || showSomenteDisponiveis) {
+                            TextButton(
+                                onClick = {
+                                    selectedCategoria = null
+                                    showSomenteDisponiveis = false
+                                    viewModel.loadAcervos()
+                                }
+                            ) {
+                                Text("Limpar filtros")
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(visible = showFilters) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp)
+                        ) {
+                            // Filtro de categoria
+                            var showCategoriaMenu by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = selectedCategoria ?: "Selecione uma categoria",
+                                    onValueChange = { },
+                                    readOnly = true,
+                                    trailingIcon = {
+                                        IconButton(onClick = { showCategoriaMenu = !showCategoriaMenu }) {
+                                            Icon(Icons.Default.ArrowDropDown, "Selecionar categoria")
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                DropdownMenu(
+                                    expanded = showCategoriaMenu,
+                                    onDismissRequest = { showCategoriaMenu = false },
+                                    modifier = Modifier.fillMaxWidth(0.9f)
+                                ) {
+                                    listOf("Literatura", "Ciências", "Tecnologia", "História", "Geografia",
+                                          "Artes", "Filosofia", "Sociologia", "Engenharia", "Matemática", "Outros"
+                                    ).forEach { categoria ->
+                                        DropdownMenuItem(
+                                            text = { Text(categoria) },
+                                            onClick = {
+                                                selectedCategoria = categoria
+                                                showCategoriaMenu = false
+                                                viewModel.filterAcervos(
+                                                    categoria = categoria,
+                                                    disponivel = if (showSomenteDisponiveis) true else null
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Filtro de disponibilidade
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Checkbox(
+                                    checked = showSomenteDisponiveis,
+                                    onCheckedChange = { checked ->
+                                        showSomenteDisponiveis = checked
+                                        viewModel.filterAcervos(
+                                            categoria = selectedCategoria,
+                                            disponivel = if (checked) true else null
+                                        )
+                                    }
+                                )
+                                Text("Mostrar apenas disponíveis")
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (error != null) {
+                        Text(
+                            text = error ?: "Erro ao carregar acervo",
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    } else {
+                        LazyColumn {
+                            items(acervos) { acervo ->
+                                BookCard(
+                                    title = acervo.titulo,
+                                    subtitle = "${acervo.autor} - ${acervo.ano}",
+                                    rating = "★${acervo.classificacao}",
+                                    disponivel = acervo.disponivel,
+                                    onReserveClick = {
+                                        val intent = Intent(context, BookDetailActivity::class.java).apply {
+                                            putExtra("acervoId", acervo.id)
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                        }
+                    }
                 }
 
                 "add" -> {
                     AddEditContent(
+                        viewModel = viewModel,
                         title = "Adicionar Acervo",
-                        onBack = { currentScreen = "list" },
-                        onConfirm = {}
+                        onBack = { currentScreen = "list" }
                     )
                 }
             }
@@ -221,7 +382,13 @@ fun AcervoScreen() {
 }
 
 @Composable
-fun BookCard(title: String, subtitle: String, rating: String, onReserveClick: () -> Unit) {
+fun BookCard(
+    title: String,
+    subtitle: String,
+    rating: String,
+    disponivel: Boolean,
+    onReserveClick: () -> Unit
+) {
     Card(
         Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -229,7 +396,9 @@ fun BookCard(title: String, subtitle: String, rating: String, onReserveClick: ()
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -240,15 +409,18 @@ fun BookCard(title: String, subtitle: String, rating: String, onReserveClick: ()
                 Text(rating, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "Disponível",
-                    color = Color(0xFF388E3C), // Green color
+                    if (disponivel) "Disponível" else "Indisponível",
+                    color = if (disponivel) Color(0xFF388E3C) else Color(0xFFD32F2F),
                     fontWeight = FontWeight.Bold
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
             Button(
                 onClick = onReserveClick,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                enabled = disponivel
             ) {
                 Text("Reservar")
             }
@@ -257,11 +429,29 @@ fun BookCard(title: String, subtitle: String, rating: String, onReserveClick: ()
 }
 
 @Composable
-fun AddEditContent(title: String, onBack: () -> Unit, onConfirm: () -> Unit) {
+fun AddEditContent(
+    viewModel: AcervoViewModel,
+    title: String,
+    onBack: () -> Unit
+) {
+    var acervoTitulo by remember { mutableStateOf("") }
+    var autor by remember { mutableStateOf("") }
+    var isbn by remember { mutableStateOf("") }
+    var ano by remember { mutableStateOf("") }
+    var categoria by remember { mutableStateOf("") }
+    var descricao by remember { mutableStateOf("") }
+    var exemplaresTotais by remember { mutableStateOf("") }
+    var isDigital by remember { mutableStateOf(false) }
+    var isFisico by remember { mutableStateOf(true) }
+    var showCategoriaMenu by remember { mutableStateOf(false) }
+    var hasError by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf("") }
+
     Column(
         Modifier
             .fillMaxSize()
-            .padding(8.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
     ) {
         Text(
             text = title,
@@ -270,37 +460,175 @@ fun AddEditContent(title: String, onBack: () -> Unit, onConfirm: () -> Unit) {
                 color = MaterialTheme.colorScheme.primary
             )
         )
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Título") }, modifier = Modifier.fillMaxWidth())
+        Spacer(modifier = Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = acervoTitulo,
+            onValueChange = { acervoTitulo = it },
+            label = { Text("Título*") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = hasError && acervoTitulo.isBlank()
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Autor") }, modifier = Modifier.fillMaxWidth())
+
+        OutlinedTextField(
+            value = autor,
+            onValueChange = { autor = it },
+            label = { Text("Autor*") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = hasError && autor.isBlank()
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Ano") }, modifier = Modifier.fillMaxWidth())
+
+        OutlinedTextField(
+            value = isbn,
+            onValueChange = { isbn = it },
+            label = { Text("ISBN") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        OutlinedTextField(
+            value = ano,
+            onValueChange = { newValue ->
+                if (newValue.isEmpty() || newValue.matches(Regex("\\d*"))) ano = newValue
+            },
+            label = { Text("Ano*") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            isError = hasError && ano.isBlank()
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Categoria
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedTextField(
+                value = categoria,
+                onValueChange = { },
+                label = { Text("Categoria*") },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                trailingIcon = {
+                    IconButton(onClick = { showCategoriaMenu = true }) {
+                        Icon(Icons.Default.ArrowDropDown, "Selecionar categoria")
+                    }
+                }
+            )
+
+            DropdownMenu(
+                expanded = showCategoriaMenu,
+                onDismissRequest = { showCategoriaMenu = false },
+                modifier = Modifier.fillMaxWidth(0.9f)
+            ) {
+                listOf("Literatura", "Ciências", "Tecnologia", "História", "Geografia",
+                      "Artes", "Filosofia", "Sociologia", "Engenharia", "Matemática", "Outros"
+                ).forEach { cat ->
+                    DropdownMenuItem(
+                        text = { Text(cat) },
+                        onClick = {
+                            categoria = cat
+                            showCategoriaMenu = false
+                        }
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = exemplaresTotais,
+            onValueChange = { newValue ->
+                if (newValue.isEmpty() || newValue.matches(Regex("\\d*"))) exemplaresTotais = newValue
+            },
+            label = { Text("Quantidade de exemplares*") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(),
+            isError = hasError && exemplaresTotais.isBlank()
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Checkbox(checked = false, onCheckedChange = {})
+            Checkbox(
+                checked = isDigital,
+                onCheckedChange = { isDigital = it }
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Digital")
             Spacer(modifier = Modifier.width(16.dp))
-            Checkbox(checked = false, onCheckedChange = {})
+            Checkbox(
+                checked = isFisico,
+                onCheckedChange = { isFisico = it }
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Físico")
         }
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedTextField(value = "", onValueChange = {}, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
+
+        OutlinedTextField(
+            value = descricao,
+            onValueChange = { descricao = it },
+            label = { Text("Descrição*") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3,
+            isError = hasError && descricao.isBlank()
+        )
+
+        if (hasError) {
+            Text(
+                text = errorMessage,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             OutlinedButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = null)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text("Voltar")
             }
-            Button(onClick = onConfirm, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
+
+            Button(
+                onClick = {
+                    if (acervoTitulo.isNotBlank() &&
+                        autor.isNotBlank() &&
+                        ano.isNotBlank() &&
+                        exemplaresTotais.isNotBlank() &&
+                        descricao.isNotBlank() &&
+                        (isDigital || isFisico)) {
+                        val novoAcervo = Acervo(
+                            titulo = acervoTitulo,
+                            autor = autor,
+                            ano = ano.toInt(),
+                            categoria = categoria,
+                            descricao = descricao,
+                            exemplaresTotais = exemplaresTotais.toInt(),
+                            exemplaresDisponiveis = exemplaresTotais.toInt(),
+                            digital = isDigital,
+                            fisico = isFisico
+                        )
+                        viewModel.addAcervo(novoAcervo)
+                        onBack()
+                    } else {
+                        hasError = true
+                        errorMessage = "Por favor, preencha todos os campos obrigatórios"
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
                 Text(if (title.contains("Editar")) "Confirmar" else "Adicionar")
             }
         }
     }
 }
+
+
 
 // Navigation helpers
 private fun navigateToHome(context: Context) {
@@ -323,18 +651,8 @@ private fun navigateToProduzir(context: Context) {
     context.startActivity(intent)
 }
 
-private fun navigateToAcervo(context: Context) {
-    val intent = Intent(context, AcervoActivity::class.java)
-    context.startActivity(intent)
-}
-
 private fun navigateToExposicoes(context: Context) {
     val intent = Intent(context, ExposicoesActivity::class.java)
-    context.startActivity(intent)
-}
-
-private fun navigateToBookDetail(context: Context) {
-    val intent = Intent(context, BookDetailActivity::class.java)
     context.startActivity(intent)
 }
 
@@ -349,10 +667,3 @@ data class BottomNavItem(
     val index: Int
 )
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 800)
-@Composable
-fun AcervoScreenPreview() {
-    UniforLibraryTheme {
-        AcervoScreen()
-    }
-}
