@@ -55,7 +55,7 @@ fun LoginScreen(viewModel: AuthViewModel = viewModel()) {
                 Toast.makeText(context, (authState as AuthState.Success).message, Toast.LENGTH_SHORT).show()
 
                 // Verificar se é admin
-                if (viewModel.isAdmin()) {
+                if ((authState as AuthState.Success).isAdmin) {
                     context.startActivity(Intent(context, HomeAdm_Activity::class.java))
                 } else {
                     context.startActivity(Intent(context, HomeActivity::class.java))
@@ -146,14 +146,6 @@ fun LoginScreen(viewModel: AuthViewModel = viewModel()) {
             enabled = authState !is AuthState.Loading
         ) {
             Text("Criar uma conta")
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedButton(
-            onClick = { context.startActivity(Intent(context, HomeAdm_Activity::class.java)) },
-            enabled = authState !is AuthState.Loading
-        ) {
-            Text("Administrador")
         }
     }
 }

@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 sealed class AuthState {
     object Idle : AuthState()
     object Loading : AuthState()
-    data class Success(val message: String = "Sucesso!") : AuthState()
+    data class Success(val message: String = "Sucesso!", val isAdmin: Boolean = false) : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
@@ -35,7 +35,8 @@ class AuthViewModel : ViewModel() {
 
             val result = repository.login(emailOuMatricula, senha)
             _authState.value = if (result.isSuccess) {
-                AuthState.Success("Login realizado com sucesso!")
+                val isAdmin = repository.isAdmin()
+                AuthState.Success("Login realizado com sucesso!", isAdmin)
             } else {
                 AuthState.Error(getErrorMessage(result.exceptionOrNull()))
             }
@@ -59,7 +60,8 @@ class AuthViewModel : ViewModel() {
 
             val result = repository.register(nome, matricula, email, senha)
             _authState.value = if (result.isSuccess) {
-                AuthState.Success("Cadastro realizado com sucesso!")
+                val isAdmin = repository.isAdmin()
+                AuthState.Success("Cadastro realizado com sucesso!", isAdmin)
             } else {
                 AuthState.Error(getErrorMessage(result.exceptionOrNull()))
             }
