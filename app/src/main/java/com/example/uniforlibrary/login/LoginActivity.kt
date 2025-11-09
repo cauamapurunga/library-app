@@ -55,14 +55,7 @@ fun LoginScreen(viewModel: AuthViewModel = viewModel()) {
                 Toast.makeText(context, (authState as AuthState.Success).message, Toast.LENGTH_SHORT).show()
 
                 // Verificar se é admin
-                val isAdmin = try {
-                    viewModel.isAdmin()
-                } catch (e: Exception) {
-                    false
-                }
-
-                // Navegar para a tela correta
-                if (isAdmin) {
+                if ((authState as AuthState.Success).isAdmin) {
                     context.startActivity(Intent(context, HomeAdm_Activity::class.java))
                 } else {
                     context.startActivity(Intent(context, HomeActivity::class.java))
