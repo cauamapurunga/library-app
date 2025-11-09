@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.Chatbot
+import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
 import com.example.uniforlibrary.home.HomeActivity
@@ -168,19 +169,9 @@ fun AcervoScreen() {
     val uiState by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
 
-    var selectedItemIndex by remember { mutableIntStateOf(1) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todas") }
     var selectedAvailability by remember { mutableStateOf("Todas") }
-
-    val navigationItems = listOf(
-        BottomNavItem("Home", Icons.Default.Home, 0),
-        BottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1),
-        BottomNavItem("Empréstimos", Icons.Default.Book, 2),
-        BottomNavItem("Reservas", Icons.Default.Bookmark, 3),
-        BottomNavItem("Produzir", Icons.Default.Add, 4),
-        BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
-    )
 
     // Realizar busca quando o searchQuery mudar
     LaunchedEffect(searchQuery) {
@@ -220,7 +211,7 @@ fun AcervoScreen() {
                             tint = Color.White
                         )
                     }
-                    IconButton(onClick = { navigateToProfile(context) }) {
+                    IconButton(onClick = { context.startActivity(Intent(context, EditProfileActivity::class.java)) }) {
                         Icon(
                             Icons.Default.Person,
                             contentDescription = "Perfil",
@@ -235,61 +226,7 @@ fun AcervoScreen() {
             )
         },
         bottomBar = {
-            Surface(
-                tonalElevation = 0.dp,
-                shadowElevation = 16.dp,
-                color = Color.White
-            ) {
-                NavigationBar(
-                    containerColor = Color.White,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier
-                        .height(80.dp)
-                        .padding(vertical = 8.dp, horizontal = 4.dp)
-                ) {
-                    navigationItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = selectedItemIndex == item.index,
-                            onClick = {
-                                selectedItemIndex = item.index
-                                when (item.index) {
-                                    0 -> navigateToHome(context)
-                                    1 -> { /* já está em Acervo */ }
-                                    2 -> navigateToEmprestimos(context)
-                                    3 -> navigateToReservations(context)
-                                    4 -> navigateToProduzir(context)
-                                    5 -> navigateToExposicoes(context)
-                                }
-                            },
-                            label = {
-                                Text(
-                                    item.label,
-                                    fontSize = 9.sp,
-                                    maxLines = 2,
-                                    textAlign = TextAlign.Center,
-                                    lineHeight = 11.sp,
-                                    fontWeight = if (selectedItemIndex == item.index)
-                                        FontWeight.Bold else FontWeight.Medium
-                                )
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.label,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = Color(0xFF666666),
-                                unselectedTextColor = Color(0xFF666666),
-                                indicatorColor = Color.Transparent
-                            )
-                        )
-                    }
-                }
-            }
+            UserBottomNav(context = context, selectedItemIndex = 1)
         },
         floatingActionButton = {
              Chatbot(context = context)
