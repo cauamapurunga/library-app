@@ -34,6 +34,7 @@ import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity

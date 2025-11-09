@@ -18,7 +18,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +30,7 @@ import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -168,7 +168,6 @@ fun LoanCard(loan: Loan, onRenewClick: () -> Unit) {
 
 // --- Modelos e Navegação ---
 data class Loan(val title: String, val dueDate: String, val isLate: Boolean)
-data class BottomNavItem(val label: String, val icon: ImageVector, val index: Int)
 
 private fun navigateToHome(context: Context) {
     context.startActivity(Intent(context, HomeActivity::class.java))

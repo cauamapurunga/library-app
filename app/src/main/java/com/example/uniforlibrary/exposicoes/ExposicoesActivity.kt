@@ -31,6 +31,7 @@ import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -214,7 +215,6 @@ fun ExhibitionCard(exhibition: Exhibition, onReserveClick: () -> Unit) {
 
 // --- Modelos e Navegação ---
 data class Exhibition(val title: String, val author: String, val rating: String, val isAvailable: Boolean)
-data class BottomNavItem(val label: String, val icon: ImageVector, val index: Int)
 
 private fun navigateToHome(context: Context) {
     context.startActivity(Intent(context, HomeActivity::class.java))

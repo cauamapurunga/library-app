@@ -32,17 +32,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
+import com.example.uniforlibrary.acervo.BookDetailActivity
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
+import com.example.uniforlibrary.model.Book
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.BookUiState
+import com.example.uniforlibrary.viewmodel.BookViewModel
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +64,8 @@ class HomeActivity : ComponentActivity() {
 @Composable
 fun HomeScreen() {
     val context = LocalContext.current
+    val viewModel: BookViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -156,7 +163,24 @@ fun HomeScreen() {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            HighlightsSection()
+            when (uiState) {
+                is BookUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is BookUiState.Success -> {
+                    val books = (uiState as BookUiState.Success).books
+                    HighlightsSection(books = books, context = context)
+                }
+                is BookUiState.Error -> {
+                    Text(
+                        text = "Erro ao carregar livros em destaque",
+                        color = MaterialTheme.colorScheme.error,
+                        fontSize = 14.sp
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -295,50 +319,112 @@ fun QuickAccessCard(item: QuickAccessItem) {
 }
 
 @Composable
-fun HighlightsSection() {
+fun HighlightsSection(books: List<Book>, context: Context) {
     Column {
-        // Primeira linha de chips
-        HighlightRow(
-            items = listOf(
-                "📚 Livros mais populares",
-                "🎄 Novidades",
-                "📝 Trabalhos em Destaque"
-            )
+        // Primeira linha - Livros mais populares (com melhor avaliação)
+        Text(
+            text = "📚 Livros mais populares",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
         )
-
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Segunda linha de chips (Autores)
-        HighlightRow(
-            items = listOf(
-                "FULANO/RE: AURUM #1",
-                "FULANO/RE: AURUM #2",
-                "FULANO/RE: AURUM #3"
-            )
-        )
+        val popularBooks = try {
+            books.sortedByDescending { it.rating }.take(5)
+        } catch (e: Exception) {
+            books.take(5)
+        }
 
+        if (popularBooks.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(popularBooks) { book ->
+                    BookHighlightChip(book = book, context = context)
+                }
+            }
+        } else {
+            Text("Nenhum livro disponível", fontSize = 12.sp, color = Color.Gray)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Segunda linha - Novidades (livros mais recentes)
+        Text(
+            text = "🎄 Novidades",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Terceira linha de chips (WOW)
-        HighlightRow(
-            items = listOf(
-                "WOW - Aluno X.X.X",
-                "WOW - Aluno X.X.X",
-                "WOW - Aluno X.X.X"
-            )
-        )
+        val newBooks = try {
+            books.sortedByDescending { it.createdAt?.seconds ?: 0 }.take(5)
+        } catch (e: Exception) {
+            books.take(5)
+        }
 
+        if (newBooks.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(newBooks) { book ->
+                    BookHighlightChip(book = book, context = context)
+                }
+            }
+        } else {
+            Text("Nenhum livro disponível", fontSize = 12.sp, color = Color.Gray)
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Terceira linha - Livros disponíveis
+        Text(
+            text = "📖 Disponíveis para empréstimo",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Quarta linha de chips (How to build)
-        HighlightRow(
-            items = listOf(
-                "How to build your upper/lower exercises - Fulano#1",
-                "How to build your upper/lower exercises - Fulano#2",
-                "How to build your upper/lower exercises - Fulano#3"
-            )
-        )
+        val availableBooks = try {
+            books.filter { it.isAvailable() }.take(5)
+        } catch (e: Exception) {
+            emptyList()
+        }
+
+        if (availableBooks.isNotEmpty()) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(availableBooks) { book ->
+                    BookHighlightChip(book = book, context = context)
+                }
+            }
+        } else {
+            Text("Nenhum livro disponível no momento", fontSize = 12.sp, color = Color.Gray)
+        }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun BookHighlightChip(book: Book, context: Context) {
+    AssistChip(
+        onClick = {
+            val intent = Intent(context, BookDetailActivity::class.java)
+            intent.putExtra("BOOK_ID", book.id)
+            context.startActivity(intent)
+        },
+        label = {
+            Text(
+                text = "${book.title} - ${book.author}",
+                fontSize = 12.sp,
+                maxLines = 1
+            )
+        },
+        shape = RoundedCornerShape(20.dp),
+        colors = AssistChipDefaults.assistChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = MaterialTheme.colorScheme.onSurface
+        ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+    )
 }
 
 @Composable
