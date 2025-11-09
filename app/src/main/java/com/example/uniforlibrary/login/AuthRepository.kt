@@ -18,12 +18,15 @@ class AuthRepository {
             val result = auth.createUserWithEmailAndPassword(email, senha).await()
             val user = result.user ?: throw Exception("Erro ao criar usuário")
 
+            // Verificar se é admin baseado no email
+            val tipo = if (email.endsWith("@adm.unifor.br")) "ADMIN" else "usuario"
+
             // Salvar dados adicionais no Firestore incluindo matrícula
             val userData = hashMapOf(
                 "nome" to nome,
                 "matricula" to matricula,
                 "email" to email,
-                "tipo" to "usuario",
+                "tipo" to tipo,
                 "criadoEm" to System.currentTimeMillis()
             )
             firestore.collection("usuarios").document(user.uid).set(userData).await()
@@ -94,7 +97,8 @@ class AuthRepository {
         return try {
             val userId = currentUser?.uid ?: return false
             val doc = firestore.collection("usuarios").document(userId).get().await()
-            doc.getString("tipo") == "admin"
+            val tipo = doc.getString("tipo")
+            tipo == "admin" || tipo == "ADMIN"
         } catch (e: Exception) {
             false
         }

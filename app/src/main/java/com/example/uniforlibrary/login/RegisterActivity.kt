@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.homeAdm.HomeAdm_Activity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 
 class RegisterActivity : ComponentActivity() {
@@ -54,7 +55,13 @@ fun RegisterScreen(viewModel: AuthViewModel = viewModel()) {
         when (authState) {
             is AuthState.Success -> {
                 Toast.makeText(context, (authState as AuthState.Success).message, Toast.LENGTH_SHORT).show()
-                context.startActivity(Intent(context, HomeActivity::class.java))
+
+                // Redirecionar para a página apropriada baseado no tipo de usuário
+                if ((authState as AuthState.Success).isAdmin) {
+                    context.startActivity(Intent(context, HomeAdm_Activity::class.java))
+                } else {
+                    context.startActivity(Intent(context, HomeActivity::class.java))
+                }
                 (context as? ComponentActivity)?.finish()
             }
             is AuthState.Error -> {
