@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,17 +23,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil.compose.AsyncImage
-import com.example.uniforlibrary.acervoAdm.model.AcervoAdm
-import com.example.uniforlibrary.acervoAdm.viewmodel.AcervoAdmViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.Chatbot
@@ -42,15 +38,15 @@ import com.example.uniforlibrary.model.Book
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.BookUiState
+import com.example.uniforlibrary.viewmodel.BookViewModel
 
 class AcervoAdm_Activity : ComponentActivity() {
-    private val viewModel: AcervoAdmViewModel by viewModels()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             UniforLibraryTheme {
-                AcervoAdmScreen(viewModel)
+                AcervoAdmScreen()
             }
         }
     }
@@ -58,29 +54,36 @@ class AcervoAdm_Activity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
+fun AcervoAdmScreen() {
     val context = LocalContext.current
+    val viewModel: BookViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+    val operationResult by viewModel.operationResult.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+
     var currentScreen by remember { mutableStateOf("list") }
     var showRemoveDialog by remember { mutableStateOf(false) }
     var bookToModify by remember { mutableStateOf<Book?>(null) }
-
-    // Estados para os filtros
     var searchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Todas") }
-    var selectedAvailability by remember { mutableStateOf("Todas") }
 
-    // Coletar estados do ViewModel
-    val acervos by viewModel.acervos.collectAsStateWithLifecycle()
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val error by viewModel.error.collectAsStateWithLifecycle()
+    // Mostrar toast quando houver resultado de operação
+    LaunchedEffect(operationResult) {
+        operationResult?.let { result ->
+            result.onSuccess { message ->
+                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                currentScreen = "list"
+            }.onFailure { error ->
+                Toast.makeText(context, "Erro: ${error.message}", Toast.LENGTH_SHORT).show()
+            }
+            viewModel.clearOperationResult()
+        }
+    }
 
-    // Efeito para aplicar filtros
-    LaunchedEffect(searchQuery, selectedCategory, selectedAvailability) {
-        viewModel.filterAcervos(
-            searchQuery = searchQuery,
-            categoria = if (selectedCategory == "Todas") null else selectedCategory,
-            disponibilidade = if (selectedAvailability == "Todas") null else selectedAvailability
-        )
+    // Realizar busca quando o searchQuery mudar
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.isNotEmpty()) {
+            viewModel.searchBooks(searchQuery)
+        }
     }
 
     Scaffold(
@@ -98,7 +101,7 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
                     }
                 },
                 navigationIcon = {
-                    if (currentScreen != "list") {
+                     if (currentScreen != "list") {
                         IconButton(onClick = { currentScreen = "list" }) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar", tint = Color.White)
                         }
@@ -122,7 +125,10 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
             Row {
                 if (currentScreen == "list") {
                     SmallFloatingActionButton(
-                        onClick = { currentScreen = "add" },
+                        onClick = {
+                            bookToModify = null
+                            currentScreen = "add"
+                        },
                         containerColor = MaterialTheme.colorScheme.primary,
                         shape = RoundedCornerShape(12.dp)
                     ) {
@@ -135,53 +141,61 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
-        Box(modifier = Modifier.padding(innerPadding)) {
-            when (currentScreen) {
-                "list" -> {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            FilterSectionAdmin(
-                                searchQuery = searchQuery,
-                                onSearchQueryChange = { value -> searchQuery = value },
-                                selectedCategory = selectedCategory,
-                                selectedAvailability = selectedAvailability,
-                                onCategorySelect = { value -> selectedCategory = value },
-                                onAvailabilitySelect = { value -> selectedAvailability = value }
-                            )
-                        }
+        when (currentScreen) {
+            "list" -> {
+                val booksToDisplay = if (searchQuery.isNotEmpty()) searchResults else {
+                    when (uiState) {
+                        is BookUiState.Success -> (uiState as BookUiState.Success).books
+                        else -> emptyList()
+                    }
+                }
 
-                        if (isLoading) {
+                LazyColumn(
+                    modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item {
+                        FilterSectionAdmin(
+                            searchQuery = searchQuery,
+                            onSearchQueryChange = { searchQuery = it }
+                        )
+                    }
+
+                    when {
+                        uiState is BookUiState.Loading && searchQuery.isEmpty() -> {
                             item {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentAlignment = Alignment.Center
-                                ) {
+                                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator()
                                 }
                             }
-                        } else if (error != null) {
+                        }
+                        uiState is BookUiState.Error -> {
                             item {
-                                Text(
-                                    text = error ?: "Erro ao carregar acervo",
-                                    color = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.padding(16.dp)
-                                )
+                                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = (uiState as BookUiState.Error).message,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                             }
-                        } else {
-                            items(acervos) { acervo ->
+                        }
+                        booksToDisplay.isEmpty() -> {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
+                                    Text("Nenhum livro encontrado")
+                                }
+                            }
+                        }
+                        else -> {
+                            items(booksToDisplay) { book ->
                                 AdminBookCard(
-                                    acervo = acervo,
+                                    book = book,
                                     onEditClick = {
-                                        bookToModify = convertAcervoToBook(acervo)
+                                        bookToModify = book
                                         currentScreen = "edit"
                                     },
                                     onRemoveClick = {
-                                        bookToModify = convertAcervoToBook(acervo)
+                                        bookToModify = book
                                         showRemoveDialog = true
                                     }
                                 )
@@ -189,22 +203,26 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
                         }
                     }
                 }
-                "add" -> {
-                    AddEditBookScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        onBack = { currentScreen = "list" },
-                        onConfirm = { currentScreen = "list" },
-                        book = null
-                    )
-                }
-                "edit" -> {
-                    AddEditBookScreen(
-                        modifier = Modifier.fillMaxSize(),
-                        onBack = { currentScreen = "list" },
-                        onConfirm = { currentScreen = "list" },
-                        book = bookToModify
-                    )
-                }
+            }
+            "add" -> {
+                AddEditBookScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    onBack = { currentScreen = "list" },
+                    onConfirm = { book ->
+                        viewModel.addBook(book)
+                    },
+                    book = null
+                )
+            }
+            "edit" -> {
+                AddEditBookScreen(
+                    modifier = Modifier.padding(innerPadding),
+                    onBack = { currentScreen = "list" },
+                    onConfirm = { book ->
+                        viewModel.updateBook(book)
+                    },
+                    book = bookToModify
+                )
             }
         }
 
@@ -215,8 +233,9 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
                 confirmButton = {
                     TextButton(onClick = {
                         showRemoveDialog = false
-                        viewModel.removeAcervo(bookToModify)
-                        Toast.makeText(context, "Obra removida!", Toast.LENGTH_SHORT).show()
+                        bookToModify?.let { book ->
+                            viewModel.deleteBook(book.id)
+                        }
                     }) {
                         Icon(Icons.Default.Check, contentDescription = "Sim", tint = MaterialTheme.colorScheme.primary)
                         Text("Sim", color = MaterialTheme.colorScheme.primary)
@@ -235,15 +254,22 @@ fun AcervoAdmScreen(viewModel: AcervoAdmViewModel) {
 }
 
 @Composable
-fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> Unit, onConfirm: () -> Unit) {
+fun AddEditBookScreen(
+    modifier: Modifier = Modifier,
+    book: Book?,
+    onBack: () -> Unit,
+    onConfirm: (Book) -> Unit
+) {
     val isEditMode = book != null
     var title by remember { mutableStateOf(book?.title ?: "") }
-    var author by remember { mutableStateOf(book?.author?.substringBefore(" - ") ?: "") }
-    var year by remember { mutableStateOf(book?.author?.substringAfter(" - ") ?: "") }
-    var isDigital by remember { mutableStateOf(false) }
-    var isPhysical by remember { mutableStateOf(true) }
-    var physicalCopies by remember { mutableStateOf("10") }
-    var description by remember { mutableStateOf("") }
+    var author by remember { mutableStateOf(book?.author ?: "") }
+    var year by remember { mutableStateOf(book?.year ?: "") }
+    var category by remember { mutableStateOf(book?.category ?: "") }
+    var isbn by remember { mutableStateOf(book?.isbn ?: "") }
+    var isDigital by remember { mutableStateOf(book?.isDigital ?: false) }
+    var isPhysical by remember { mutableStateOf(book?.isPhysical ?: true) }
+    var physicalCopies by remember { mutableStateOf(book?.totalCopies?.toString() ?: "10") }
+    var description by remember { mutableStateOf(book?.description ?: "") }
     var showDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
@@ -277,15 +303,48 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Digite o título do livro:", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Título") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = title,
+            onValueChange = { title = it },
+            label = { Text("Título") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Digite o(a) autor(a) do livro:", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = author, onValueChange = { author = it }, label = { Text("Autor(a)") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = author,
+            onValueChange = { author = it },
+            label = { Text("Autor(a)") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("Digite o ano de publicação do livro:", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = year, onValueChange = { year = it }, label = { Text("Ano") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = year,
+            onValueChange = { year = it },
+            label = { Text("Ano") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Digite a categoria do livro:", style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(
+            value = category,
+            onValueChange = { category = it },
+            label = { Text("Categoria (ex: Romance, Ficção, História)") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Digite o ISBN do livro:", style = MaterialTheme.typography.bodySmall)
+        OutlinedTextField(
+            value = isbn,
+            onValueChange = { isbn = it },
+            label = { Text("ISBN") },
+            modifier = Modifier.fillMaxWidth()
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         Text("O exemplar é digital e/ou físico?", style = MaterialTheme.typography.bodySmall)
@@ -300,12 +359,23 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
 
         if (isPhysical) {
             Text("Se é físico, quantos exemplares existem?", style = MaterialTheme.typography.bodySmall)
-            OutlinedTextField(value = physicalCopies, onValueChange = { physicalCopies = it }, label = { Text("10") }, modifier = Modifier.fillMaxWidth())
+            OutlinedTextField(
+                value = physicalCopies,
+                onValueChange = { physicalCopies = it },
+                label = { Text("Exemplares") },
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(modifier = Modifier.height(16.dp))
         }
 
         Text("Digite a descrição do livro:", style = MaterialTheme.typography.bodySmall)
-        OutlinedTextField(value = description, onValueChange = { description = it }, label = { Text("Descrição") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(
+            value = description,
+            onValueChange = { description = it },
+            label = { Text("Descrição") },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 3
+        )
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(
@@ -317,7 +387,8 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
             }
             Button(
                 onClick = { showDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                enabled = title.isNotBlank() && author.isNotBlank()
             ) {
                 Text(if (isEditMode) "+ Editar" else "+ Adicionar")
             }
@@ -327,13 +398,40 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            title = { Text(if (isEditMode) "Tem certeza que deseja editar a obra do acervo?" else "Tem certeza que deseja adicionar a obra ao acervo?", textAlign = TextAlign.Center) },
+            title = {
+                Text(
+                    if (isEditMode) "Tem certeza que deseja editar a obra do acervo?"
+                    else "Tem certeza que deseja adicionar a obra ao acervo?",
+                    textAlign = TextAlign.Center
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDialog = false
-                    val message = if (isEditMode) "Obra editada!" else "Obra adicionada!"
-                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                    onConfirm()
+
+                    val copies = physicalCopies.toIntOrNull() ?: 0
+                    // Tenta converter category para Int, se falhar usa 0
+                    val categoryIdValue = category.toIntOrNull() ?: 0
+
+                    val newBook = Book(
+                        id = book?.id ?: "",
+                        title = title,
+                        author = author,
+                        publicationYear = year.toIntOrNull() ?: 2024,
+                        categoryId = categoryIdValue,
+                        isbn = isbn,
+                        description = description,
+                        isDigital = isDigital,
+                        totalCopies = copies,
+                        availableCopies = book?.availableCopies ?: copies,
+                        rating = book?.rating ?: 5,
+                        coverImageUrl = book?.coverImageUrl ?: "",
+                        digitalContentUrl = book?.digitalContentUrl ?: "",
+                        createdAt = book?.createdAt,
+                        updatedAt = com.google.firebase.Timestamp.now()
+                    )
+
+                    onConfirm(newBook)
                 }) {
                     Icon(Icons.Default.Check, contentDescription = "Sim", tint = MaterialTheme.colorScheme.primary)
                     Text("Sim", color = MaterialTheme.colorScheme.primary)
@@ -353,18 +451,15 @@ fun AddEditBookScreen(modifier: Modifier = Modifier, book: Book?, onBack: () -> 
 @Composable
 fun FilterSectionAdmin(
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    selectedCategory: String,
-    selectedAvailability: String,
-    onCategorySelect: (String) -> Unit,
-    onAvailabilitySelect: (String) -> Unit
+    onSearchQueryChange: (String) -> Unit
 ) {
-    var showCategoryMenu by remember { mutableStateOf(false) }
-    var showAvailabilityMenu by remember { mutableStateOf(false) }
+    var expandedCategory by remember { mutableStateOf(false) }
+    var expandedAvailability by remember { mutableStateOf(false) }
+    var selectedCategory by remember { mutableStateOf("Todas") }
+    var selectedAvailability by remember { mutableStateOf("Todas") }
 
-    val categories = listOf("Todas", "Literatura", "Ciências", "Tecnologia", "História", "Geografia",
-        "Artes", "Filosofia", "Sociologia", "Engenharia", "Matemática", "Outros")
-    val availabilityOptions = listOf("Todas", "Disponível", "Indisponível", "Digital")
+    val categories = listOf("Todas", "Romance", "Ficção", "Não-ficção", "História", "Ciência", "Tecnologia", "Arte", "Biografia")
+    val availabilityOptions = listOf("Todas", "Disponível", "Indisponível")
 
     Column {
         OutlinedTextField(
@@ -377,54 +472,68 @@ fun FilterSectionAdmin(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Dropdown de Categoria
             Box(modifier = Modifier.weight(1f)) {
                 OutlinedTextField(
                     value = selectedCategory,
                     onValueChange = {},
                     label = { Text("Categoria") },
-                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.clickable { expandedCategory = !expandedCategory }
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showCategoryMenu = true },
+                        .clickable { expandedCategory = !expandedCategory },
                     readOnly = true
                 )
                 DropdownMenu(
-                    expanded = showCategoryMenu,
-                    onDismissRequest = { showCategoryMenu = false }
+                    expanded = expandedCategory,
+                    onDismissRequest = { expandedCategory = false }
                 ) {
                     categories.forEach { category ->
                         DropdownMenuItem(
                             text = { Text(category) },
                             onClick = {
-                                onCategorySelect(category)
-                                showCategoryMenu = false
+                                selectedCategory = category
+                                expandedCategory = false
                             }
                         )
                     }
                 }
             }
 
+            // Dropdown de Disponibilidade
             Box(modifier = Modifier.weight(1f)) {
                 OutlinedTextField(
                     value = selectedAvailability,
                     onValueChange = {},
                     label = { Text("Disponibilidade") },
-                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
+                    trailingIcon = {
+                        Icon(
+                            Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.clickable { expandedAvailability = !expandedAvailability }
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { showAvailabilityMenu = true },
+                        .clickable { expandedAvailability = !expandedAvailability },
                     readOnly = true
                 )
                 DropdownMenu(
-                    expanded = showAvailabilityMenu,
-                    onDismissRequest = { showAvailabilityMenu = false }
+                    expanded = expandedAvailability,
+                    onDismissRequest = { expandedAvailability = false }
                 ) {
                     availabilityOptions.forEach { option ->
                         DropdownMenuItem(
                             text = { Text(option) },
                             onClick = {
-                                onAvailabilitySelect(option)
-                                showAvailabilityMenu = false
+                                selectedAvailability = option
+                                expandedAvailability = false
                             }
                         )
                     }
@@ -435,7 +544,7 @@ fun FilterSectionAdmin(
 }
 
 @Composable
-fun AdminBookCard(acervo: AcervoAdm, onEditClick: () -> Unit, onRemoveClick: () -> Unit) {
+fun AdminBookCard(book: Book, onEditClick: () -> Unit, onRemoveClick: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -443,73 +552,39 @@ fun AdminBookCard(acervo: AcervoAdm, onEditClick: () -> Unit, onRemoveClick: () 
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            // Se tiver uma imagem de capa, exibe ela, senão mostra o ícone padrão
-            if (acervo.imagemUrl.isNotBlank()) {
-                AsyncImage(
-                    model = acervo.imagemUrl,
-                    contentDescription = "Capa do livro",
-                    modifier = Modifier.size(40.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    Icons.Default.Book,
-                    contentDescription = "Book Icon",
-                    modifier = Modifier.size(40.dp),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            }
-
+            Icon(
+                Icons.Default.Book,
+                contentDescription = "Book Icon",
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(acervo.titulo, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${acervo.autor} - ${acervo.ano}", color = Color.Gray, fontSize = 14.sp)
+                Text(book.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("${book.author} - ${book.year}", color = Color.Gray, fontSize = 14.sp)
+                Text(book.rating.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                 Text(
-                    text = when {
-                        acervo.digital && acervo.exemplaresDisponiveis > 0 -> "Digital + ${acervo.exemplaresDisponiveis} físicos"
-                        acervo.digital -> "Digital"
-                        else -> "${acervo.exemplaresDisponiveis}/${acervo.exemplaresTotais} disponíveis"
-                    },
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                    book.getAvailabilityText(),
+                    color = if (book.isAvailable()) Color(0xFF388E3C) else Color.Red,
+                    fontSize = 12.sp
                 )
-                if (acervo.classificacao > 0) {
-                    Text(
-                        "Avaliação: ${acervo.classificacao}/5",
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontSize = 12.sp
-                    )
-                }
             }
-            Row {
+            Column {
                 TextButton(onClick = onEditClick) { Text("Editar") }
-                TextButton(onClick = onRemoveClick) { Text("Remover") }
+                TextButton(onClick = onRemoveClick) { Text("Remover", color = Color.Red) }
             }
         }
     }
 }
 
-// --- Helpers ---
-fun navigateToProfile(context: Context) {
+private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
 
-fun convertAcervoToBook(acervo: AcervoAdm): Book {
-    return Book(
-        id = acervo.id,
-        title = acervo.titulo,
-        author = acervo.autor,
-        publicationYear = acervo.ano,
-        categoryId = 0, // TODO: Converter categoria para ID
-        description = acervo.descricao,
-        rating = acervo.classificacao.toInt(),
-        isDigital = acervo.digital,
-        totalCopies = acervo.exemplaresTotais,
-        availableCopies = acervo.exemplaresDisponiveis,
-        coverImageUrl = acervo.imagemUrl,
-        digitalContentUrl = "",
-        isbn = "",
-        createdAt = null,
-        updatedAt = null
-    )
+@Preview(showBackground = true)
+@Composable
+fun AcervoAdmScreenPreview() {
+    UniforLibraryTheme {
+        AcervoAdmScreen()
+    }
 }
