@@ -37,6 +37,7 @@ import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.model.BottomNavItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -390,8 +391,6 @@ private fun navigateToExposicoes(context: Context) {
 private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
-
-data class BottomNavItem(val label: String, val icon: ImageVector, val index: Int)
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

@@ -31,9 +31,11 @@ import androidx.compose.ui.unit.sp
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.components.Chatbot
+import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -64,17 +66,7 @@ class MyReservationsActivity : ComponentActivity() {
 fun MyReservationsScreen() {
     val context = LocalContext.current
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    var selectedNavItemIndex by remember { mutableIntStateOf(3) } // "Reservas" is selected
     val tabs = listOf("Todos", "Disponíveis", "Aguardando", "Devolvidos")
-
-    val navigationItems = listOf(
-        BottomNavItem("Home", Icons.Default.Home, 0),
-        BottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1),
-        BottomNavItem("Empréstimos", Icons.Default.Book, 2),
-        BottomNavItem("Reservas", Icons.Default.Bookmark, 3),
-        BottomNavItem("Produzir", Icons.Default.Add, 4),
-        BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
-    )
 
     val allReservations = remember {
         listOf(
@@ -118,39 +110,10 @@ fun MyReservationsScreen() {
             )
         },
         bottomBar = {
-            Surface(tonalElevation = 0.dp, shadowElevation = 16.dp, color = Color.White) {
-                NavigationBar(
-                    containerColor = Color.White,
-                    tonalElevation = 0.dp,
-                    modifier = Modifier.height(80.dp).padding(vertical = 8.dp, horizontal = 4.dp)
-                ) {
-                    navigationItems.forEach { item ->
-                        NavigationBarItem(
-                            selected = selectedNavItemIndex == item.index,
-                            onClick = {
-                                selectedNavItemIndex = item.index
-                                when (item.index) {
-                                    0 -> navigateToHome(context)
-                                    1 -> navigateToAcervo(context)
-                                    2 -> navigateToEmprestimos(context)
-                                    3 -> { /* Já está em Reservas */ }
-                                    4 -> navigateToProduzir(context)
-                                    5 -> navigateToExposicoes(context)
-                                }
-                            },
-                            label = { Text(item.label, fontSize = 9.sp, maxLines = 2, textAlign = TextAlign.Center, lineHeight = 11.sp, fontWeight = if (selectedNavItemIndex == item.index) FontWeight.Bold else FontWeight.Medium) },
-                            icon = { Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(24.dp)) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = Color(0xFF666666),
-                                unselectedTextColor = Color(0xFF666666),
-                                indicatorColor = Color.Transparent
-                            )
-                        )
-                    }
-                }
-            }
+            UserBottomNav(
+                context = context,
+                selectedItemIndex = 3
+            )
         },
         floatingActionButton = {
             Chatbot(context = context)

@@ -20,7 +20,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,17 +29,25 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.model.Book
+import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
+import com.example.uniforlibrary.repository.BookRepository
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import kotlinx.coroutines.launch
 
 class BookDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val bookId = intent.getStringExtra("BOOK_ID") ?: ""
         setContent {
             UniforLibraryTheme {
-                BookDetailScreen(onBack = { finish() })
+                BookDetailScreen(
+                    bookId = bookId,
+                    onBack = { finish() }
+                )
             }
         }
     }
@@ -48,9 +55,17 @@ class BookDetailActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BookDetailScreen(onBack: () -> Unit) {
+fun BookDetailScreen(bookId: String, onBack: () -> Unit) {
     val context = LocalContext.current
+    val repository = remember { BookRepository() }
+    val scope = rememberCoroutineScope()
+
+    var book by remember { mutableStateOf<Book?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
     var selectedItemIndex by remember { mutableIntStateOf(1) }
+    var showBottomSheet by remember { mutableStateOf(false) }
+
     val navigationItems = listOf(
         BottomNavItem("Home", Icons.Default.Home, 0),
         BottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1),
@@ -59,7 +74,37 @@ fun BookDetailScreen(onBack: () -> Unit) {
         BottomNavItem("Produzir", Icons.Default.Add, 4),
         BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
     )
-    var showBottomSheet by remember { mutableStateOf(false) }
+
+    // Carregar dados do livro
+    LaunchedEffect(bookId) {
+        android.util.Log.d("BookDetailActivity", "LaunchedEffect iniciado com bookId: '$bookId'")
+
+        if (bookId.isNotEmpty()) {
+            scope.launch {
+                android.util.Log.d("BookDetailActivity", "Buscando livro com ID: $bookId")
+                val result = repository.getBookById(bookId)
+
+                result.onSuccess { loadedBook ->
+                    android.util.Log.d("BookDetailActivity", "Livro carregado com sucesso: ${loadedBook?.title}")
+                    if (loadedBook == null) {
+                        android.util.Log.e("BookDetailActivity", "Livro é null mesmo com sucesso")
+                        error = "Livro não encontrado no banco de dados"
+                    } else {
+                        book = loadedBook
+                    }
+                    isLoading = false
+                }.onFailure { e ->
+                    android.util.Log.e("BookDetailActivity", "Erro ao carregar livro", e)
+                    error = "Erro ao carregar detalhes: ${e.message}"
+                    isLoading = false
+                }
+            }
+        } else {
+            android.util.Log.e("BookDetailActivity", "bookId está vazio!")
+            error = "ID do livro não foi fornecido"
+            isLoading = false
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -107,64 +152,97 @@ fun BookDetailScreen(onBack: () -> Unit) {
             }
         }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_launcher_foreground), // Placeholder
-                contentDescription = "Book Cover",
-                modifier = Modifier
-                    .size(180.dp)
-                    .background(Color.LightGray, shape = RoundedCornerShape(8.dp)),
-                tint = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text("PathExileLORE", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-            Text("Narak ★5", fontSize = 16.sp, color = Color.Gray)
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                InfoChip(label = "Categoria", value = "História", modifier = Modifier.weight(1f))
-                InfoChip(label = "Ano", value = "2020", modifier = Modifier.weight(1f))
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                InfoChip(label = "Autor", value = "Narak", modifier = Modifier.weight(1f))
-                InfoChip(label = "Exemplares disp.", value = "3 de 10", modifier = Modifier.weight(1f))
+            error != null || book == null -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = error ?: "Livro não encontrado",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
             }
+            else -> {
+                Column(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                        contentDescription = "Book Cover",
+                        modifier = Modifier
+                            .size(180.dp)
+                            .background(Color.LightGray, shape = RoundedCornerShape(8.dp)),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(book!!.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Text("${book!!.author} ${book!!.rating}", fontSize = 16.sp, color = Color.Gray)
 
-            Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-            Button(
-                onClick = { showBottomSheet = true },
-                modifier = Modifier.fillMaxWidth().height(50.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Icon(Icons.Default.Edit, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Reservar Livro", fontWeight = FontWeight.Bold)
-            }
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        InfoChip(label = "Categoria", value = book!!.category.ifEmpty { "N/A" }, modifier = Modifier.weight(1f))
+                        InfoChip(label = "Ano", value = book!!.year, modifier = Modifier.weight(1f))
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        InfoChip(label = "Autor", value = book!!.author, modifier = Modifier.weight(1f))
+                        InfoChip(
+                            label = "Exemplares disp.",
+                            value = "${book!!.availableCopies} de ${book!!.totalCopies}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-            DetailSection()
-        }
+                    Button(
+                        onClick = { showBottomSheet = true },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = book!!.isAvailable()
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Reservar Livro", fontWeight = FontWeight.Bold)
+                    }
 
-        if (showBottomSheet) {
-            ModalBottomSheet(onDismissRequest = { showBottomSheet = false }) {
-                ReservationBottomSheetContent(
-                    onConfirm = {
-                        showBottomSheet = false
-                        Toast.makeText(context, "Reserva Confirmada!", Toast.LENGTH_SHORT).show()
-                    },
-                    onCancel = { showBottomSheet = false }
-                )
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    DetailSection(book = book!!)
+                }
+
+                if (showBottomSheet) {
+                    ModalBottomSheet(onDismissRequest = { showBottomSheet = false }) {
+                        ReservationBottomSheetContent(
+                            book = book!!,
+                            onConfirm = {
+                                showBottomSheet = false
+                                Toast.makeText(context, "Reserva Confirmada!", Toast.LENGTH_SHORT).show()
+                            },
+                            onCancel = { showBottomSheet = false }
+                        )
+                    }
+                }
             }
         }
     }
@@ -183,7 +261,7 @@ fun InfoChip(label: String, value: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun DetailSection() {
+fun DetailSection(book: Book) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Descrição", "Avaliações")
 
@@ -200,7 +278,7 @@ fun DetailSection() {
         Spacer(modifier = Modifier.height(16.dp))
         when (selectedTabIndex) {
             0 -> Text(
-                "A história de Path of Exile é um RPG de ação sombrio onde o jogador, um exilado criminoso, é enviado para a perigosa terra de Wraeclast, evitando assim o reinado divino de Oriath.",
+                book.description.ifEmpty { "Sem descrição disponível." },
                 fontSize = 14.sp,
                 color = Color.Gray,
                 lineHeight = 20.sp
@@ -211,7 +289,7 @@ fun DetailSection() {
 }
 
 @Composable
-fun ReservationBottomSheetContent(onConfirm: () -> Unit, onCancel: () -> Unit) {
+fun ReservationBottomSheetContent(book: Book, onConfirm: () -> Unit, onCancel: () -> Unit) {
     var date by remember { mutableStateOf("30/10/2025") }
     var plazo by remember { mutableStateOf("7") }
     var observations by remember { mutableStateOf("") }
@@ -223,8 +301,8 @@ fun ReservationBottomSheetContent(onConfirm: () -> Unit, onCancel: () -> Unit) {
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("PathExileLORE", fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("Narak ★5", fontSize = 16.sp, color = Color.Gray)
+        Text(book.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("${book.author} ${book.rating}", fontSize = 16.sp, color = Color.Gray)
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -302,26 +380,26 @@ private fun navigateToHome(context: Context) {
     context.startActivity(Intent(context, HomeActivity::class.java))
 }
 
-private fun navigateToAcervo(context: Context) {
-    context.startActivity(Intent(context, AcervoActivity::class.java))
-}
-
 private fun navigateToReservations(context: Context) {
     context.startActivity(Intent(context, MyReservationsActivity::class.java))
-}
-
-private fun navigateToProduzir(context: Context) {
-    context.startActivity(Intent(context, ProduzirActivity::class.java))
 }
 
 private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
 
-@Preview(showBackground = true, widthDp = 360, heightDp = 800)
+private fun navigateToProduzir(context: Context) {
+    context.startActivity(Intent(context, ProduzirActivity::class.java))
+}
+
+private fun navigateToAcervo(context: Context) {
+    context.startActivity(Intent(context, AcervoActivity::class.java))
+}
+
+@Preview(showBackground = true)
 @Composable
 fun BookDetailScreenPreview() {
     UniforLibraryTheme {
-        BookDetailScreen(onBack = {})
+        BookDetailScreen(bookId = "", onBack = {})
     }
 }
