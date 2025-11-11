@@ -34,8 +34,10 @@ import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.repository.BookRepository
+import com.example.uniforlibrary.repository.ReservationRepository
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
 class BookDetailActivity : ComponentActivity() {
@@ -58,13 +60,16 @@ class BookDetailActivity : ComponentActivity() {
 fun BookDetailScreen(bookId: String, onBack: () -> Unit) {
     val context = LocalContext.current
     val repository = remember { BookRepository() }
+    val reservationRepository = remember { ReservationRepository() }
     val scope = rememberCoroutineScope()
+    val auth = FirebaseAuth.getInstance()
 
     var book by remember { mutableStateOf<Book?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var selectedItemIndex by remember { mutableIntStateOf(1) }
     var showBottomSheet by remember { mutableStateOf(false) }
+    var isCreatingReservation by remember { mutableStateOf(false) }
 
     val navigationItems = listOf(
         BottomNavItem("Home", Icons.Default.Home, 0),
@@ -235,9 +240,62 @@ fun BookDetailScreen(bookId: String, onBack: () -> Unit) {
                     ModalBottomSheet(onDismissRequest = { showBottomSheet = false }) {
                         ReservationBottomSheetContent(
                             book = book!!,
+                            isCreatingReservation = isCreatingReservation,
                             onConfirm = {
-                                showBottomSheet = false
-                                Toast.makeText(context, "Reserva Confirmada!", Toast.LENGTH_SHORT).show()
+                                // Criar reserva no Firebase
+                                val currentUserId = auth.currentUser?.uid
+
+                                if (currentUserId == null) {
+                                    Toast.makeText(
+                                        context,
+                                        "Erro: Usuário não autenticado",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    showBottomSheet = false
+                                    return@ReservationBottomSheetContent
+                                }
+
+                                isCreatingReservation = true
+
+                                scope.launch {
+                                    android.util.Log.d(
+                                        "BookDetailActivity",
+                                        "Criando reserva para livro: ${book!!.id}, usuário: $currentUserId"
+                                    )
+
+                                    val result = reservationRepository.createReservation(
+                                        bookId = book!!.id,
+                                        userId = currentUserId
+                                    )
+
+                                    isCreatingReservation = false
+
+                                    result.onSuccess { reservationId ->
+                                        android.util.Log.d(
+                                            "BookDetailActivity",
+                                            "Reserva criada com sucesso: $reservationId"
+                                        )
+                                        showBottomSheet = false
+                                        Toast.makeText(
+                                            context,
+                                            "Reserva criada com sucesso! Aguarde aprovação do administrador.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+
+                                    result.onFailure { e ->
+                                        android.util.Log.e(
+                                            "BookDetailActivity",
+                                            "Erro ao criar reserva",
+                                            e
+                                        )
+                                        Toast.makeText(
+                                            context,
+                                            "Erro ao criar reserva: ${e.message}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
                             },
                             onCancel = { showBottomSheet = false }
                         )
@@ -289,7 +347,12 @@ fun DetailSection(book: Book) {
 }
 
 @Composable
-fun ReservationBottomSheetContent(book: Book, onConfirm: () -> Unit, onCancel: () -> Unit) {
+fun ReservationBottomSheetContent(
+    book: Book,
+    isCreatingReservation: Boolean = false,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
     var date by remember { mutableStateOf("30/10/2025") }
     var plazo by remember { mutableStateOf("7") }
     var observations by remember { mutableStateOf("") }
@@ -357,18 +420,29 @@ fun ReservationBottomSheetContent(book: Book, onConfirm: () -> Unit, onCancel: (
         Button(
             onClick = onConfirm,
             modifier = Modifier.fillMaxWidth().height(50.dp),
-            enabled = agreedToPolicies,
+            enabled = agreedToPolicies && !isCreatingReservation,
             shape = RoundedCornerShape(12.dp)
         ) {
-            Icon(Icons.Default.Check, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Confirmar Reserva")
+            if (isCreatingReservation) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Criando...")
+            } else {
+                Icon(Icons.Default.Check, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Confirmar Reserva")
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedButton(
             onClick = onCancel,
             modifier = Modifier.fillMaxWidth().height(50.dp),
-            shape = RoundedCornerShape(12.dp)
+            shape = RoundedCornerShape(12.dp),
+            enabled = !isCreatingReservation
         ) {
             Text("Cancelar")
         }
