@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.model.Book
@@ -190,14 +192,29 @@ fun BookDetailScreen(bookId: String, onBack: () -> Unit) {
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_launcher_foreground),
-                        contentDescription = "Book Cover",
-                        modifier = Modifier
-                            .size(180.dp)
-                            .background(Color.LightGray, shape = RoundedCornerShape(8.dp)),
-                        tint = Color.Gray
-                    )
+                    // Capa do livro
+                    if (book!!.coverImageUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = book!!.coverImageUrl,
+                            contentDescription = "Capa de ${book!!.title}",
+                            modifier = Modifier
+                                .width(180.dp)
+                                .height(270.dp)
+                                .background(Color.LightGray, shape = RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Placeholder se não houver capa
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_launcher_foreground),
+                            contentDescription = "Book Cover",
+                            modifier = Modifier
+                                .size(180.dp)
+                                .background(Color.LightGray, shape = RoundedCornerShape(8.dp)),
+                            tint = Color.Gray
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(book!!.title, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                     Text("${book!!.author} ${book!!.rating}", fontSize = 16.sp, color = Color.Gray)
@@ -226,8 +243,6 @@ fun BookDetailScreen(bookId: String, onBack: () -> Unit) {
                         shape = RoundedCornerShape(12.dp),
                         enabled = book!!.isAvailable()
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text("Reservar Livro", fontWeight = FontWeight.Bold)
                     }
 

@@ -322,6 +322,7 @@ class ReservationRepository {
     /**
      * UPDATE - Marcar como retirada (Admin)
      * Transição: Aprovada -> Retirado
+     * IMPORTANTE: Cria automaticamente um empréstimo quando marcado como retirado
      */
     suspend fun markAsWithdrawn(
         reservationId: String,
@@ -339,20 +340,85 @@ class ReservationRepository {
                 return Result.failure(Exception("Apenas reservas aprovadas podem ser marcadas como retiradas"))
             }
 
+            val withdrawalDate = Timestamp.now()
+
             val updates = hashMapOf<String, Any>(
                 "status" to ReservationStatus.RETIRADO.value,
-                "withdrawal_date" to Timestamp.now(),
+                "withdrawal_date" to withdrawalDate,
                 "approved_by" to (adminId ?: auth.currentUser?.uid ?: ""),
                 "updated_at" to Timestamp.now()
             )
 
             reservationsCollection.document(reservationId).update(updates).await()
 
-            Log.d(TAG, "Reserva marcada como retirada: $reservationId")
+            // CRIAR EMPRÉSTIMO AUTOMATICAMENTE
+            createLoanFromReservation(reservationId, withdrawalDate, reservationDoc)
+
+            Log.d(TAG, "Reserva marcada como retirada e empréstimo criado: $reservationId")
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao marcar como retirada", e)
             Result.failure(e)
+        }
+    }
+
+    /**
+     * Cria um empréstimo automaticamente a partir de uma reserva retirada
+     * Este método é chamado internamente quando o admin marca como retirado
+     */
+    private suspend fun createLoanFromReservation(
+        reservationId: String,
+        withdrawalDate: Timestamp,
+        reservationDoc: com.google.firebase.firestore.DocumentSnapshot
+    ) {
+        try {
+            val loansCollection = db.collection("loans")
+
+            // Verificar se já existe empréstimo para esta reserva
+            val existingLoan = loansCollection
+                .whereEqualTo("reservation_id", reservationId)
+                .get()
+                .await()
+
+            if (!existingLoan.isEmpty) {
+                Log.d(TAG, "Empréstimo já existe para esta reserva")
+                return
+            }
+
+            // Calcular data de devolução (14 dias após retirada)
+            val calendar = java.util.Calendar.getInstance()
+            calendar.time = withdrawalDate.toDate()
+            calendar.add(java.util.Calendar.DAY_OF_MONTH, 14)
+            val dueDate = Timestamp(calendar.time)
+
+            // Criar documento de empréstimo
+            val loanDoc = loansCollection.document()
+            val loanData = hashMapOf(
+                "id" to loanDoc.id,
+                "reservation_id" to reservationId,
+                "book_id" to (reservationDoc.getString("book_id") ?: ""),
+                "book_title" to (reservationDoc.getString("book_title") ?: ""),
+                "book_author" to (reservationDoc.getString("book_author") ?: ""),
+                "book_cover_url" to (reservationDoc.getString("book_cover_url") ?: ""),
+                "user_id" to (reservationDoc.getString("user_id") ?: ""),
+                "user_name" to (reservationDoc.getString("user_name") ?: ""),
+                "user_matricula" to (reservationDoc.getString("user_matricula") ?: ""),
+                "user_email" to (reservationDoc.getString("user_email") ?: ""),
+                "status" to "Ativo",
+                "withdrawal_date" to withdrawalDate,
+                "due_date" to dueDate,
+                "return_date" to null,
+                "renewal_count" to 0,
+                "max_renewals" to 2,
+                "created_at" to Timestamp.now(),
+                "updated_at" to Timestamp.now()
+            )
+
+            loanDoc.set(loanData).await()
+            Log.d(TAG, "✅ Empréstimo criado automaticamente: ${loanDoc.id} para reserva: $reservationId")
+        } catch (e: Exception) {
+            Log.e(TAG, "❌ Erro ao criar empréstimo automático", e)
+            // Não falhar a operação principal se o empréstimo não for criado
         }
     }
 
