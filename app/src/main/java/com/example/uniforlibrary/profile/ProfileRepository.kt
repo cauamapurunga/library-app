@@ -1,5 +1,8 @@
 package com.example.uniforlibrary.profile
 
+import android.content.Context
+import android.net.Uri
+import com.example.uniforlibrary.service.CloudinaryService
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -11,7 +14,8 @@ data class UserProfile(
     val email: String = "",
     val telefone: String = "",
     val curso: String = "",
-    val tipo: String = "usuario"
+    val tipo: String = "usuario",
+    val fotoUrl: String = ""
 )
 
 class ProfileRepository {
@@ -40,7 +44,8 @@ class ProfileRepository {
                 email = doc.getString("email") ?: "",
                 telefone = doc.getString("telefone") ?: "",
                 curso = doc.getString("curso") ?: "",
-                tipo = doc.getString("tipo") ?: "usuario"
+                tipo = doc.getString("tipo") ?: "usuario",
+                fotoUrl = doc.getString("fotoUrl") ?: ""
             )
 
             Result.success(profile)
@@ -132,6 +137,29 @@ class ProfileRepository {
 
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Upload de foto de perfil usando Cloudinary
+    suspend fun uploadProfilePhoto(context: Context, imageUri: Uri): Result<String> {
+        return try {
+            val userId = currentUser?.uid ?: throw Exception("Usuário não autenticado")
+
+            android.util.Log.d("ProfileRepository", "Iniciando upload de foto de perfil para usuário: $userId")
+
+            // Fazer upload para Cloudinary
+            val uploadResult = CloudinaryService.uploadProfileImage(context, imageUri, userId)
+
+            uploadResult.onSuccess { imageUrl ->
+                // Atualizar URL da foto no Firestore
+                updateProfilePhoto(imageUrl)
+                android.util.Log.d("ProfileRepository", "Foto de perfil atualizada com sucesso: $imageUrl")
+            }
+
+            uploadResult
+        } catch (e: Exception) {
+            android.util.Log.e("ProfileRepository", "Erro ao fazer upload da foto de perfil", e)
             Result.failure(e)
         }
     }

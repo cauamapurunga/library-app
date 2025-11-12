@@ -2,7 +2,10 @@ package com.example.uniforlibrary.produzir
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.components.Chatbot
@@ -38,17 +42,77 @@ import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.model.BottomNavItem
+import com.example.uniforlibrary.viewmodel.ProducaoViewModel
+import com.example.uniforlibrary.viewmodel.ProducaoUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProduzirScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val viewModel: ProducaoViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
 
     var titulo by remember { mutableStateOf("") }
     var categoria by remember { mutableStateOf("Cordel") }
-    var fotoSelecionada by remember { mutableStateOf<String?>(null) }
-    var arquivoSelecionado by remember { mutableStateOf<String?>(null) }
+    var fotoUri by remember { mutableStateOf<Uri?>(null) }
+    var arquivoUri by remember { mutableStateOf<Uri?>(null) }
+    var fotoNome by remember { mutableStateOf<String?>(null) }
+    var arquivoNome by remember { mutableStateOf<String?>(null) }
     var showDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+
+    // Launcher para seleção de foto
+    val fotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            fotoUri = it
+            fotoNome = "foto_selecionada.jpg"
+            Toast.makeText(context, "Foto selecionada!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Launcher para seleção de arquivo (PDF/DOC)
+    val arquivoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            arquivoUri = it
+            arquivoNome = "documento_selecionado.pdf"
+            Toast.makeText(context, "Arquivo selecionado!", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Observar mudanças de estado
+    LaunchedEffect(uiState) {
+        when (uiState) {
+            is ProducaoUiState.Loading -> {
+                isLoading = true
+            }
+            is ProducaoUiState.Success -> {
+                isLoading = false
+                Toast.makeText(
+                    context,
+                    (uiState as ProducaoUiState.Success).message,
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetState()
+                onBack()
+            }
+            is ProducaoUiState.Error -> {
+                isLoading = false
+                Toast.makeText(
+                    context,
+                    (uiState as ProducaoUiState.Error).message,
+                    Toast.LENGTH_LONG
+                ).show()
+                viewModel.resetState()
+            }
+            else -> {
+                isLoading = false
+            }
+        }
+    }
 
     val navigationItems = listOf(
         BottomNavItem("Home", Icons.Default.Home, 0),
@@ -147,92 +211,132 @@ fun ProduzirScreen(onBack: () -> Unit) {
         },
         floatingActionButtonPosition = FabPosition.Start,
         content = { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .padding(innerPadding)
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Envie seus trabalhos para avaliação do comitê editorial da biblioteca",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                UploadBox(
-                    titulo = "Upload da foto da produção:",
-                    descricao = "Arraste sua foto\nFormatos aceitos: .png, .jpg, .jpeg - Máx 20MB",
-                    onSelect = { fotoSelecionada = "foto.png" }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = titulo,
-                    onValueChange = { titulo = it },
-                    label = { Text("Título") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                        focusedLabelColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                CategoriaDropdown(selected = categoria, onSelect = { categoria = it })
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                UploadBox(
-                    titulo = "Upload da produção:",
-                    descricao = "Arraste seu PDF ou DOC\nFormatos aceitos: .pdf, .docx - Máx 20MB",
-                    onSelect = { arquivoSelecionado = "trabalho.pdf" }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        if (titulo.isNotBlank() && arquivoSelecionado != null) {
-                            showDialog = true
-                        } else {
-                            Toast.makeText(context, "Preencha o título e selecione um arquivo", Toast.LENGTH_SHORT).show()
-                        }
-                    },
+            Box(modifier = Modifier.fillMaxSize()) {
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Enviar para avaliação", color = MaterialTheme.colorScheme.onPrimary)
+                    Text(
+                        text = "Envie seus trabalhos para avaliação do comitê editorial da biblioteca",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    UploadBox(
+                        titulo = "Upload da foto da produção:",
+                        descricao = if (fotoNome != null) {
+                            "✓ $fotoNome"
+                        } else {
+                            "Arraste sua foto\nFormatos aceitos: .png, .jpg, .jpeg - Máx 20MB"
+                        },
+                        onSelect = { fotoPickerLauncher.launch("image/*") },
+                        isSelected = fotoNome != null
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    OutlinedTextField(
+                        value = titulo,
+                        onValueChange = { titulo = it },
+                        label = { Text("Título") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                            focusedLabelColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    CategoriaDropdown(selected = categoria, onSelect = { categoria = it })
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    UploadBox(
+                        titulo = "Upload da produção:",
+                        descricao = if (arquivoNome != null) {
+                            "✓ $arquivoNome"
+                        } else {
+                            "Arraste seu PDF ou DOC\nFormatos aceitos: .pdf, .docx - Máx 20MB"
+                        },
+                        onSelect = { arquivoPickerLauncher.launch("application/*") },
+                        isSelected = arquivoNome != null
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            if (titulo.isNotBlank() && arquivoUri != null) {
+                                showDialog = true
+                            } else {
+                                Toast.makeText(context, "Preencha o título e selecione um arquivo", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = MaterialTheme.shapes.medium,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        enabled = !isLoading
+                    ) {
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                        } else {
+                            Icon(Icons.Default.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.onPrimary)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Enviar para avaliação", color = MaterialTheme.colorScheme.onPrimary)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Text(
+                        text = "Dicas rápidas",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+
+                    Text(
+                        text = "Use títulos claros, inclua palavras-chaves e revise sua formatação para ficar dentro das normas da biblioteca.",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(30.dp))
-
-                Text(
-                    text = "Dicas rápidas",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-
-                Text(
-                    text = "Use títulos claros, inclua palavras-chaves e revise sua formatação para ficar dentro das normas da biblioteca.",
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
+                // Loading overlay
+                if (isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            CircularProgressIndicator(color = Color.White)
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "Enviando produção...",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
             }
 
             if (showDialog) {
@@ -255,8 +359,14 @@ fun ProduzirScreen(onBack: () -> Unit) {
                         Button(
                             onClick = {
                                 showDialog = false
-                                Toast.makeText(context, "Envio realizado com sucesso!", Toast.LENGTH_LONG).show()
-                                onBack()
+                                // Chamar ViewModel para fazer upload
+                                viewModel.submitProducao(
+                                    context = context,
+                                    titulo = titulo,
+                                    categoria = categoria,
+                                    fotoUri = fotoUri,
+                                    arquivoUri = arquivoUri
+                                )
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
@@ -279,7 +389,7 @@ fun ProduzirScreen(onBack: () -> Unit) {
 }
 
 @Composable
-fun UploadBox(titulo: String, descricao: String, onSelect: () -> Unit) {
+fun UploadBox(titulo: String, descricao: String, onSelect: () -> Unit, isSelected: Boolean = false) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(titulo, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
@@ -287,7 +397,11 @@ fun UploadBox(titulo: String, descricao: String, onSelect: () -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
-                .background(MaterialTheme.colorScheme.surface, shape = MaterialTheme.shapes.medium)
+                .background(
+                    if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                    else MaterialTheme.colorScheme.surface,
+                    shape = MaterialTheme.shapes.medium
+                )
                 .padding(16.dp)
         ) {
             Column(
@@ -296,16 +410,19 @@ fun UploadBox(titulo: String, descricao: String, onSelect: () -> Unit) {
             ) {
                 Text(
                     text = descricao,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                           else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center,
                     fontSize = 13.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
                     onClick = onSelect,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("Selecionar arquivo")
+                    Text(if (isSelected) "Alterar arquivo" else "Selecionar arquivo")
                 }
             }
         }

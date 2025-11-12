@@ -1,5 +1,7 @@
 package com.example.uniforlibrary.viewmodel
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uniforlibrary.model.Book
@@ -156,6 +158,17 @@ class BookViewModel : ViewModel() {
             try {
                 val result = repository.returnBook(bookId)
                 _operationResult.value = result.map { "Devolução realizada com sucesso!" }
+            } catch (e: Exception) {
+                _operationResult.value = Result.failure(e)
+            }
+        }
+    }
+
+    fun uploadBookCover(context: Context, bookId: String, imageUri: Uri) {
+        viewModelScope.launch {
+            try {
+                val result = repository.uploadBookCover(context, bookId, imageUri)
+                _operationResult.value = result.map { "Capa do livro atualizada com sucesso!" }
             } catch (e: Exception) {
                 _operationResult.value = Result.failure(e)
             }
