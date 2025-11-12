@@ -40,8 +40,8 @@ fun UserBottomNav(context: Context, selectedItemIndex: Int) {
             containerColor = Color.White,
             tonalElevation = 0.dp,
             modifier = Modifier
-                .height(80.dp)
-                .padding(vertical = 8.dp, horizontal = 4.dp)
+                .height(72.dp)
+                .padding(vertical = 4.dp, horizontal = 4.dp)
         ) {
             navigationItems.forEach { item ->
                 NavigationBarItem(
@@ -53,20 +53,20 @@ fun UserBottomNav(context: Context, selectedItemIndex: Int) {
                     },
                     label = {
                         Text(
-                            item.label,
-                            fontSize = 9.sp,
-                            maxLines = 2,
+                            text = item.label,
+                            fontSize = 8.sp,
+                            maxLines = 1,
                             textAlign = TextAlign.Center,
-                            lineHeight = 11.sp,
                             fontWeight = if (selectedItemIndex == item.index)
-                                FontWeight.Bold else FontWeight.Medium
+                                FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(top = 2.dp)
                         )
                     },
                     icon = {
                         Icon(
                             imageVector = item.icon,
                             contentDescription = item.label,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     },
                     colors = NavigationBarItemDefaults.colors(
