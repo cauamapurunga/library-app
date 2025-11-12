@@ -2,10 +2,13 @@ package com.example.uniforlibrary.acervoAdm
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.Chatbot
@@ -261,6 +266,7 @@ fun AddEditBookScreen(
     onConfirm: (Book) -> Unit
 ) {
     val isEditMode = book != null
+    val viewModel: BookViewModel = viewModel()
     var title by remember { mutableStateOf(book?.title ?: "") }
     var author by remember { mutableStateOf(book?.author ?: "") }
     var year by remember { mutableStateOf(book?.year ?: "") }
@@ -271,7 +277,23 @@ fun AddEditBookScreen(
     var physicalCopies by remember { mutableStateOf(book?.totalCopies?.toString() ?: "10") }
     var description by remember { mutableStateOf(book?.description ?: "") }
     var showDialog by remember { mutableStateOf(false) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var coverImageUrl by remember { mutableStateOf(book?.coverImageUrl ?: "") }
     val context = LocalContext.current
+
+            // Launcher para seleção de imagem
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedImageUri = it
+            // Se for modo de edição e já tiver um ID de livro, fazer upload imediatamente
+            if (isEditMode && book.id.isNotEmpty()) {
+                viewModel.uploadBookCover(context, book.id, it)
+                Toast.makeText(context, "Fazendo upload da capa...", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -285,19 +307,42 @@ fun AddEditBookScreen(
                 .fillMaxWidth()
                 .height(180.dp)
                 .background(Color.LightGray.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
-                .clickable { /* TODO: handle image selection */ }
+                .clickable { imagePickerLauncher.launch("image/*") }
                 .padding(16.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    Icons.Default.AddPhotoAlternate,
-                    contentDescription = "Adicionar Capa",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(48.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("Adicionar capa do livro", color = Color.Gray)
+            when {
+                // Mostrar imagem selecionada
+                selectedImageUri != null -> {
+                    AsyncImage(
+                        model = selectedImageUri,
+                        contentDescription = "Capa selecionada",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                // Mostrar imagem existente
+                coverImageUrl.isNotEmpty() -> {
+                    AsyncImage(
+                        model = coverImageUrl,
+                        contentDescription = "Capa do livro",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                // Mostrar placeholder
+                else -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Default.AddPhotoAlternate,
+                            contentDescription = "Adicionar Capa",
+                            tint = Color.Gray,
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Adicionar capa do livro", color = Color.Gray)
+                    }
+                }
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
@@ -432,6 +477,9 @@ fun AddEditBookScreen(
                     )
 
                     onConfirm(newBook)
+
+                    // Nota: Para adicionar upload de imagem em modo de adição,
+                    // você precisa aguardar o callback de sucesso com o ID do livro criado
                 }) {
                     Icon(Icons.Default.Check, contentDescription = "Sim", tint = MaterialTheme.colorScheme.primary)
                     Text("Sim", color = MaterialTheme.colorScheme.primary)

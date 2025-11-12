@@ -1,6 +1,9 @@
 package com.example.uniforlibrary.repository
 
+import android.content.Context
+import android.net.Uri
 import com.example.uniforlibrary.model.Book
+import com.example.uniforlibrary.service.CloudinaryService
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.Timestamp
@@ -380,6 +383,35 @@ class BookRepository {
                 Result.failure(Exception("Erro ao devolver livro"))
             }
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Upload de capa de livro usando Cloudinary
+    suspend fun uploadBookCover(context: Context, bookId: String, imageUri: Uri): Result<String> {
+        return try {
+            android.util.Log.d("BookRepository", "Iniciando upload de capa para livro: $bookId")
+
+            // Fazer upload para Cloudinary
+            val uploadResult = CloudinaryService.uploadBookCover(context, imageUri, bookId)
+
+            uploadResult.onSuccess { imageUrl ->
+                // Atualizar URL da capa no Firestore
+                booksCollection.document(bookId)
+                    .update(
+                        mapOf(
+                            "cover_image_url" to imageUrl,
+                            "updated_at" to Timestamp.now()
+                        )
+                    )
+                    .await()
+
+                android.util.Log.d("BookRepository", "Capa atualizada com sucesso: $imageUrl")
+            }
+
+            uploadResult
+        } catch (e: Exception) {
+            android.util.Log.e("BookRepository", "Erro ao fazer upload da capa", e)
             Result.failure(e)
         }
     }

@@ -1,5 +1,7 @@
 package com.example.uniforlibrary.profile
 
+import android.content.Context
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,6 +100,23 @@ class ProfileViewModel : ViewModel() {
             } else {
                 _profileState.value = ProfileState.Error(
                     result.exceptionOrNull()?.message ?: "Erro ao atualizar telefone"
+                )
+            }
+        }
+    }
+
+    // Upload de foto de perfil
+    fun uploadProfilePhoto(context: Context, imageUri: Uri) {
+        viewModelScope.launch {
+            _profileState.value = ProfileState.Loading
+
+            val result = repository.uploadProfilePhoto(context, imageUri)
+            if (result.isSuccess) {
+                _profileState.value = ProfileState.Success("Foto de perfil atualizada com sucesso!")
+                loadUserProfile() // Recarregar perfil
+            } else {
+                _profileState.value = ProfileState.Error(
+                    result.exceptionOrNull()?.message ?: "Erro ao atualizar foto de perfil"
                 )
             }
         }
