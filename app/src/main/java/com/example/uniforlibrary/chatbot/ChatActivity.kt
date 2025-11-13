@@ -21,7 +21,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.ai.client.generativeai.GenerativeModel
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import kotlinx.coroutines.launch
 
 data class ChatMessage(val text: String, val isUser: Boolean)
 
@@ -45,6 +47,15 @@ fun ChatScreen() {
     }
     var inputText by remember { mutableStateOf("") }
 
+    //criando a conexão com gemini, criando um escopo para adaptar o generateContent
+    var generativeModel:GenerativeModel
+    generativeModel = remember { GenerativeModel(
+        "gemini-2.0-flash",
+        "COLOCA A CHAVE AQUI",
+    ) }
+    generativeModel.startChat()
+
+    val scope = rememberCoroutineScope()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,11 +84,29 @@ fun ChatScreen() {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(onClick = {
                         if (inputText.isNotBlank()) {
-                            messages.add(ChatMessage(inputText, isUser = true))
-                            messages.add(ChatMessage("Desculpe, ainda estou aprendendo!", isUser = false))
-                            inputText = ""
+                            var userMessage = inputText
+                            messages.add(ChatMessage(userMessage, isUser = true))
+
+
+                            //gerando resposta da IA com o input do aluno
+                            scope.launch {
+                                try{
+                                    var aiPrePrompt = "Responda como um bibliotecário de uma universidade, ajudando alunos com duvida, limite a mensagem em até 600 caracteres"
+                                    var aiResponse = generativeModel.generateContent(aiPrePrompt+ inputText)
+
+                                    aiResponse.text?.let {
+                                        messages.add(ChatMessage(it, isUser = false))
+                                    }
+                                    inputText=""
+                                } catch (e: Exception){
+                                    messages.add(ChatMessage("Desculpe, ocorreu um erro.", isUser = false))
+                                }
+                            }
+
                         }
-                    }) {
+
+                    }
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -100,13 +129,13 @@ fun ChatScreen() {
 fun MessageBubble(message: ChatMessage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
+        horizontalArrangement = if (message.isUser) Arrangement.Start else Arrangement.End
     ) {
         Card(
             shape = RoundedCornerShape(
                 topStart = 16.dp, topEnd = 16.dp,
-                bottomStart = if (message.isUser) 16.dp else 0.dp,
-                bottomEnd = if (message.isUser) 0.dp else 16.dp
+                bottomStart = if (message.isUser) 0.dp else 16.dp,
+                bottomEnd = if (message.isUser) 16.dp else 0.dp
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (message.isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.LightGray.copy(alpha = 0.3f)
