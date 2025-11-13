@@ -84,6 +84,9 @@ dependencies {
     //cloudinary
     implementation("com.cloudinary:kotlin-url-gen:1.7.0")
 
+    //Gemini IA
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
