@@ -1,12 +1,15 @@
 package com.example.uniforlibrary.relatoriosAdm
 
+import android.app.DatePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,16 +24,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FabPosition
 import androidx.compose.material3.Icon
@@ -46,6 +49,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
 import com.example.uniforlibrary.components.Chatbot
@@ -66,6 +72,12 @@ import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservasAdm.ReservasADM_activity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.ReportUiState
+import com.example.uniforlibrary.viewmodel.ReportViewModel
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class RelatoriosAdm_Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,6 +94,11 @@ class RelatoriosAdm_Activity : ComponentActivity() {
 @Composable
 fun RelatoriosAdmScreen() {
     val context = LocalContext.current
+    val viewModel: ReportViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+    val startDate by viewModel.startDate.collectAsState()
+    val endDate by viewModel.endDate.collectAsState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -115,52 +132,201 @@ fun RelatoriosAdmScreen() {
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            DateFilters()
-            MonthlyMetrics()
-            PopularBooks()
+        when (uiState) {
+            is ReportUiState.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            }
+            is ReportUiState.Error -> {
+                Box(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = (uiState as ReportUiState.Error).message,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        androidx.compose.material3.Button(onClick = { viewModel.loadReports() }) {
+                            Text("Tentar novamente")
+                        }
+                    }
+                }
+            }
+            is ReportUiState.Success -> {
+                val successState = uiState as ReportUiState.Success
+                Column(
+                    modifier = Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    DateFilters(
+                        startDate = startDate,
+                        endDate = endDate,
+                        onDateRangeSelected = { start, end ->
+                            viewModel.setDateRange(start, end)
+                        }
+                    )
+                    MonthlyMetrics(
+                        stats = successState.stats,
+                        viewModel = viewModel
+                    )
+                    PopularBooks(popularBooks = successState.popularBooks)
+                }
+            }
         }
     }
 }
 
 @Composable
-fun DateFilters() {
+fun DateFilters(
+    startDate: Date?,
+    endDate: Date?,
+    onDateRangeSelected: (Date?, Date?) -> Unit
+) {
+    val context = LocalContext.current
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+
+    val startDateText = startDate?.let { dateFormat.format(it) } ?: ""
+    val endDateText = endDate?.let { dateFormat.format(it) } ?: ""
+
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = "",
-            onValueChange = {},
-            label = { Text("Data inicial") },
-            leadingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.weight(1f),
-            readOnly = true
-        )
-        OutlinedTextField(
-            value = "",
-            onValueChange = {},
-            label = { Text("Data final") },
-            leadingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-            modifier = Modifier.weight(1f),
-            readOnly = true
-        )
+        // Campo de Data Inicial
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedTextField(
+                value = startDateText,
+                onValueChange = {},
+                label = { Text("Data inicial") },
+                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                enabled = false,
+                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable {
+                        val calendar = Calendar.getInstance()
+                        if (startDate != null) {
+                            calendar.time = startDate
+                        }
+
+                        DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val selectedCalendar = Calendar.getInstance()
+                                selectedCalendar.set(year, month, dayOfMonth, 0, 0, 0)
+                                selectedCalendar.set(Calendar.MILLISECOND, 0)
+                                onDateRangeSelected(selectedCalendar.time, endDate)
+                            },
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH),
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    }
+            )
+        }
+
+        // Campo de Data Final
+        Box(modifier = Modifier.weight(1f)) {
+            OutlinedTextField(
+                value = endDateText,
+                onValueChange = {},
+                label = { Text("Data final") },
+                leadingIcon = { Icon(Icons.Default.CalendarToday, contentDescription = null) },
+                modifier = Modifier.fillMaxWidth(),
+                readOnly = true,
+                enabled = false,
+                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface
+                )
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable {
+                        val calendar = Calendar.getInstance()
+                        if (endDate != null) {
+                            calendar.time = endDate
+                        }
+
+                        DatePickerDialog(
+                            context,
+                            { _, year, month, dayOfMonth ->
+                                val selectedCalendar = Calendar.getInstance()
+                                selectedCalendar.set(year, month, dayOfMonth, 23, 59, 59)
+                                selectedCalendar.set(Calendar.MILLISECOND, 999)
+                                onDateRangeSelected(startDate, selectedCalendar.time)
+                            },
+                            calendar.get(Calendar.YEAR),
+                            calendar.get(Calendar.MONTH),
+                            calendar.get(Calendar.DAY_OF_MONTH)
+                        ).show()
+                    }
+            )
+        }
     }
 }
 
 @Composable
-fun MonthlyMetrics() {
+fun MonthlyMetrics(stats: com.example.uniforlibrary.repository.ReportStats, viewModel: ReportViewModel) {
+    val reservationsChange = viewModel.calculatePercentageChange(
+        stats.totalReservations,
+        stats.previousMonthReservations
+    )
+    val usersChange = viewModel.calculatePercentageChange(
+        stats.activeUsers,
+        stats.previousMonthUsers
+    )
+    val returnRateChange = viewModel.calculatePercentageChange(
+        stats.returnRate,
+        stats.previousMonthReturnRate
+    )
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Métricas do Mês", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Métricas do Período", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MetricCard(title = "Total de Reservas", value = "3", change = "+300% vs mês anterior", modifier = Modifier.weight(1f))
-            MetricCard(title = "Usuários Ativos", value = "1", change = "+100% vs mês anterior", modifier = Modifier.weight(1f))
-            MetricCard(title = "Taxa de Devolução", value = "100%", change = "+0% vs mês anterior", modifier = Modifier.weight(1f))
+            MetricCard(
+                title = "Total de Reservas",
+                value = stats.totalReservations.toString(),
+                change = "$reservationsChange vs período anterior",
+                modifier = Modifier.weight(1f)
+            )
+            MetricCard(
+                title = "Usuários Ativos",
+                value = stats.activeUsers.toString(),
+                change = "$usersChange vs período anterior",
+                modifier = Modifier.weight(1f)
+            )
+            MetricCard(
+                title = "Taxa de Devolução",
+                value = "%.0f%%".format(stats.returnRate),
+                change = "$returnRateChange vs período anterior",
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
@@ -188,29 +354,58 @@ fun MetricCard(title: String, value: String, change: String, modifier: Modifier 
 }
 
 @Composable
-fun PopularBooks() {
+fun PopularBooks(popularBooks: List<com.example.uniforlibrary.repository.PopularBook>) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Livros Mais Populares", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(8.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            elevation = CardDefaults.cardElevation(2.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                PopularBookItem(rank = 1, title = "PathExileLORE")
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                PopularBookItem(rank = 2, title = "WOW")
-                Divider(modifier = Modifier.padding(vertical = 8.dp))
-                PopularBookItem(rank = 3, title = "How to build you upper/lower exercises")
+
+        if (popularBooks.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "Nenhum livro reservado no período selecionado",
+                        textAlign = TextAlign.Center,
+                        color = Color.Gray
+                    )
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(2.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    popularBooks.forEachIndexed { index, book ->
+                        if (index > 0) {
+                            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        }
+                        PopularBookItem(
+                            rank = index + 1,
+                            title = book.title,
+                            author = book.author,
+                            reservationCount = book.reservationCount
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun PopularBookItem(rank: Int, title: String) {
+fun PopularBookItem(rank: Int, title: String, author: String = "", reservationCount: Int = 0) {
     Row(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -222,11 +417,29 @@ fun PopularBookItem(rank: Int, title: String) {
             color = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            color = Color.DarkGray
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.DarkGray
+            )
+            if (author.isNotEmpty()) {
+                Text(
+                    text = author,
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+        if (reservationCount > 0) {
+            Text(
+                text = "$reservationCount reservas",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }
 

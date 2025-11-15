@@ -600,25 +600,61 @@ fun AdminBookCard(book: Book, onEditClick: () -> Unit, onRemoveClick: () -> Unit
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = "Book Icon",
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            // Capa do livro
+            if (book.coverImageUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = book.coverImageUrl,
+                    contentDescription = "Capa de ${book.title}",
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                // Placeholder se não houver capa
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp)
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Book,
+                        contentDescription = "Sem capa",
+                        modifier = Modifier.size(40.dp),
+                        tint = Color.Gray
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(book.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("${book.author} - ${book.year}", color = Color.Gray, fontSize = 14.sp)
-                Text(book.rating.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "Rating",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        book.rating.toString(),
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
+                    )
+                }
                 Text(
                     book.getAvailabilityText(),
                     color = if (book.isAvailable()) Color(0xFF388E3C) else Color.Red,
-                    fontSize = 12.sp
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
                 )
             }
             Column {
-                TextButton(onClick = onEditClick) { Text("Editar") }
+                TextButton(onClick = onEditClick) { Text("Editar", color = MaterialTheme.colorScheme.primary) }
                 TextButton(onClick = onRemoveClick) { Text("Remover", color = Color.Red) }
             }
         }
