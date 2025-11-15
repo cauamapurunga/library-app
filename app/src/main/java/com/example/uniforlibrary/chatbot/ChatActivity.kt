@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.uniforlibrary.BuildConfig
 import com.google.ai.client.generativeai.GenerativeModel
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import kotlinx.coroutines.launch
@@ -51,7 +52,7 @@ fun ChatScreen() {
     var generativeModel:GenerativeModel
     generativeModel = remember { GenerativeModel(
         "gemini-2.0-flash",
-        "COLOCA A CHAVE AQUI",
+        BuildConfig.GEMINI_API_KEY,
     ) }
     generativeModel.startChat()
 
