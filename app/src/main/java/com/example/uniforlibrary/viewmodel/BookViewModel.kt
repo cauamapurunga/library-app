@@ -29,6 +29,10 @@ class BookViewModel : ViewModel() {
     private val _operationResult = MutableStateFlow<Result<String>?>(null)
     val operationResult: StateFlow<Result<String>?> = _operationResult.asStateFlow()
 
+    // ID do último livro criado (útil para fazer upload da capa após criação)
+    private val _lastCreatedBookId = MutableStateFlow<String?>(null)
+    val lastCreatedBookId: StateFlow<String?> = _lastCreatedBookId.asStateFlow()
+
     init {
         android.util.Log.d("BookViewModel", "ViewModel inicializado, carregando livros...")
         loadBooks()
@@ -87,6 +91,10 @@ class BookViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val result = repository.addBook(book)
+                // Guardar id criado para permitir flows subsequentes (upload de capa)
+                result.onSuccess { id ->
+                    _lastCreatedBookId.value = id
+                }
                 _operationResult.value = result.map { "Livro adicionado com sucesso!" }
             } catch (e: Exception) {
                 _operationResult.value = Result.failure(e)
@@ -177,5 +185,10 @@ class BookViewModel : ViewModel() {
 
     fun clearOperationResult() {
         _operationResult.value = null
+    }
+
+    // Limpar id do último livro criado após usar (para evitar uploads duplicados)
+    fun clearLastCreatedBookId() {
+        _lastCreatedBookId.value = null
     }
 }
