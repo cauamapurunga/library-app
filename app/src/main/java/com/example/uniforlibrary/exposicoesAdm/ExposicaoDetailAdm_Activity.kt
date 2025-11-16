@@ -33,6 +33,7 @@ import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.model.Producao
+import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.ExposicaoDetailAdmViewModel
@@ -103,7 +104,7 @@ fun ExposicaoDetailAdmScreen(producaoId: String, onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Notificações */ }) {
+                    IconButton(onClick = { Intent(context, NotificacoesActivity::class.java) }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
