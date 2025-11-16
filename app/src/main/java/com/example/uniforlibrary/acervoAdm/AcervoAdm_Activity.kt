@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -36,6 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.Chatbot
@@ -70,6 +74,8 @@ fun AcervoAdmScreen() {
     var showRemoveDialog by remember { mutableStateOf(false) }
     var bookToModify by remember { mutableStateOf<Book?>(null) }
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("Todas") }
+    var selectedAvailability by remember { mutableStateOf("Todas") }
 
     // Mostrar toast quando houver resultado de operação
     LaunchedEffect(operationResult) {
@@ -148,11 +154,29 @@ fun AcervoAdmScreen() {
     ) { innerPadding ->
         when (currentScreen) {
             "list" -> {
-                val booksToDisplay = if (searchQuery.isNotEmpty()) searchResults else {
+                // Começar com a lista base (busca ou todos os livros)
+                val baseBooks = if (searchQuery.isNotEmpty()) searchResults else {
                     when (uiState) {
                         is BookUiState.Success -> (uiState as BookUiState.Success).books
                         else -> emptyList()
                     }
+                }
+
+                // Aplicar filtros de categoria e disponibilidade
+                val booksToDisplay = baseBooks.filter { book ->
+                    val matchesCategory = when (selectedCategory) {
+                        "Todas" -> true
+                        else -> book.category == selectedCategory
+                    }
+                    
+                    val matchesAvailability = when (selectedAvailability) {
+                        "Todas" -> true
+                        "Disponível" -> book.isAvailable()
+                        "Indisponível" -> !book.isAvailable()
+                        else -> true
+                    }
+                    
+                    matchesCategory && matchesAvailability
                 }
 
                 LazyColumn(
@@ -162,7 +186,11 @@ fun AcervoAdmScreen() {
                     item {
                         FilterSectionAdmin(
                             searchQuery = searchQuery,
-                            onSearchQueryChange = { searchQuery = it }
+                            onSearchQueryChange = { searchQuery = it },
+                            selectedCategory = selectedCategory,
+                            onCategoryChange = { selectedCategory = it },
+                            selectedAvailability = selectedAvailability,
+                            onAvailabilityChange = { selectedAvailability = it }
                         )
                     }
 
@@ -281,7 +309,7 @@ fun AddEditBookScreen(
     var coverImageUrl by remember { mutableStateOf(book?.coverImageUrl ?: "") }
     val context = LocalContext.current
 
-            // Launcher para seleção de imagem
+    // Launcher para seleção de imagem
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -295,6 +323,18 @@ fun AddEditBookScreen(
         }
     }
 
+    // Observa o id do último livro criado para, se houver imagem selecionada, fazer upload
+    val lastCreatedId by viewModel.lastCreatedBookId.collectAsState()
+
+    LaunchedEffect(lastCreatedId) {
+        if (!isEditMode && lastCreatedId != null && selectedImageUri != null) {
+            Toast.makeText(context, "Fazendo upload da capa...", Toast.LENGTH_SHORT).show()
+            viewModel.uploadBookCover(context, lastCreatedId!!, selectedImageUri!!)
+            // limpar para não tentar subir novamente
+            viewModel.clearLastCreatedBookId()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -302,13 +342,14 @@ fun AddEditBookScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Box da capa do livro com proporção de capa (2:3)
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp)
+                .fillMaxWidth(0.6f) // 60% da largura para manter proporção
+                .aspectRatio(2f / 3f) // Proporção de capa de livro
                 .background(Color.LightGray.copy(alpha = 0.3f), shape = RoundedCornerShape(12.dp))
                 .clickable { imagePickerLauncher.launch("image/*") }
-                .padding(16.dp),
+                .padding(8.dp),
             contentAlignment = Alignment.Center
         ) {
             when {
@@ -318,7 +359,7 @@ fun AddEditBookScreen(
                         model = selectedImageUri,
                         contentDescription = "Capa selecionada",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 }
                 // Mostrar imagem existente
@@ -327,7 +368,7 @@ fun AddEditBookScreen(
                         model = coverImageUrl,
                         contentDescription = "Capa do livro",
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Fit
                     )
                 }
                 // Mostrar placeholder
@@ -340,7 +381,7 @@ fun AddEditBookScreen(
                             modifier = Modifier.size(48.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Adicionar capa do livro", color = Color.Gray)
+                        Text("Adicionar capa do livro", color = Color.Gray, fontSize = 12.sp)
                     }
                 }
             }
@@ -499,12 +540,14 @@ fun AddEditBookScreen(
 @Composable
 fun FilterSectionAdmin(
     searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
+    onSearchQueryChange: (String) -> Unit,
+    selectedCategory: String,
+    onCategoryChange: (String) -> Unit,
+    selectedAvailability: String,
+    onAvailabilityChange: (String) -> Unit
 ) {
     var expandedCategory by remember { mutableStateOf(false) }
     var expandedAvailability by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf("Todas") }
-    var selectedAvailability by remember { mutableStateOf("Todas") }
 
     val categories = listOf("Todas", "Romance", "Ficção", "Não-ficção", "História", "Ciência", "Tecnologia", "Arte", "Biografia")
     val availabilityOptions = listOf("Todas", "Disponível", "Indisponível")
@@ -546,7 +589,7 @@ fun FilterSectionAdmin(
                         DropdownMenuItem(
                             text = { Text(category) },
                             onClick = {
-                                selectedCategory = category
+                                onCategoryChange(category)
                                 expandedCategory = false
                             }
                         )
@@ -580,7 +623,7 @@ fun FilterSectionAdmin(
                         DropdownMenuItem(
                             text = { Text(option) },
                             onClick = {
-                                selectedAvailability = option
+                                onAvailabilityChange(option)
                                 expandedAvailability = false
                             }
                         )
@@ -593,6 +636,9 @@ fun FilterSectionAdmin(
 
 @Composable
 fun AdminBookCard(book: Book, onEditClick: () -> Unit, onRemoveClick: () -> Unit) {
+    // Logar para ajudar debug: confirmar URL recebida
+    Log.d("AdminBookCard", "Book ID=${book.id} coverImageUrl='${book.coverImageUrl}'")
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -600,26 +646,135 @@ fun AdminBookCard(book: Book, onEditClick: () -> Unit, onRemoveClick: () -> Unit
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = "Book Icon",
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            // Mostrar imagem da capa quando disponível, senão placeholder
+            if (book.coverImageUrl.isNotEmpty()) {
+                val imageRequest = ImageRequest.Builder(LocalContext.current)
+                    .data(book.coverImageUrl)
+                    .crossfade(true)
+                    .build()
+                val painter = rememberAsyncImagePainter(model = imageRequest)
+
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painter,
+                        contentDescription = "Capa de ${book.title}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    when (painter.state) {
+                        is AsyncImagePainter.State.Loading -> {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        }
+                        is AsyncImagePainter.State.Error -> {
+                            // Exibir placeholder no caso de erro
+                            Icon(
+                                Icons.Default.BrokenImage,
+                                contentDescription = "Erro ao carregar",
+                                modifier = Modifier.size(32.dp),
+                                tint = Color.Gray
+                            )
+                        }
+                        else -> {
+                            // nada
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Book,
+                        contentDescription = "Sem capa",
+                        modifier = Modifier.size(40.dp),
+                        tint = Color.Gray
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(book.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("${book.author} - ${book.year}", color = Color.Gray, fontSize = 14.sp)
-                Text(book.rating.toString(), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(2.dp))
+                // Nota/Rating
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.Star,
+                        contentDescription = "Nota",
+                        modifier = Modifier.size(14.dp),
+                        tint = Color(0xFFFFA000)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        book.rating.toString(),
+                        color = Color(0xFFFFA000),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     book.getAvailabilityText(),
                     color = if (book.isAvailable()) Color(0xFF388E3C) else Color.Red,
-                    fontSize = 12.sp
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
                 )
             }
-            Column {
-                TextButton(onClick = onEditClick) { Text("Editar") }
-                TextButton(onClick = onRemoveClick) { Text("Remover", color = Color.Red) }
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.End,
+                modifier = Modifier.width(100.dp)
+            ) {
+                // Botão Editar com ícone
+                Button(
+                    onClick = onEditClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Editar",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Editar", fontSize = 12.sp)
+                }
+
+                // Botão Remover com ícone
+                OutlinedButton(
+                    onClick = onRemoveClick,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFD32F2F)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFD32F2F)),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(36.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Remover",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Remover", fontSize = 12.sp)
+                }
             }
         }
     }
