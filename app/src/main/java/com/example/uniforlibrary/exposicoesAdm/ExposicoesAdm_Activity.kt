@@ -3,6 +3,7 @@ package com.example.uniforlibrary.exposicoesAdm
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -24,15 +25,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.Chatbot
+import com.example.uniforlibrary.model.Producao
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.ProducaoAdminUiState
+import com.example.uniforlibrary.viewmodel.ProducaoAdminViewModel
+import java.text.SimpleDateFormat
+import java.util.*
 
 class ExposicoesAdm_Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +55,10 @@ class ExposicoesAdm_Activity : ComponentActivity() {
 @Composable
 fun ExposicoesAdmScreen() {
     val context = LocalContext.current
+    val viewModel: ProducaoAdminViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+    val actionResult by viewModel.actionResult.collectAsState()
+
     var searchText by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("") }
     var selectedAvailability by remember { mutableStateOf("") }
@@ -58,11 +68,20 @@ fun ExposicoesAdmScreen() {
     val categories = listOf("Todos", "Cordel", "Artigo", "TCC", "Conto", "Produção")
     val availabilityOptions = listOf("Todos", "Pendente", "Aprovado", "Reprovado")
 
-    val submissions = remember {
-        mutableStateListOf(
-            Submission("PathExileLORE", "Narak - 2020", "★5", "Aprovado"),
-            Submission("WOW", "Aliens - 1977", "★4.8", "Reprovado"),
-            Submission("How to build your upper/lower exercises", "JohnDoe - 2025", "★4.1", "Pendente")
+    // Exibir resultado de ações
+    LaunchedEffect(actionResult) {
+        actionResult?.let { message ->
+            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            viewModel.clearActionResult()
+        }
+    }
+
+    // Aplicar filtros quando mudarem
+    LaunchedEffect(selectedCategory, selectedAvailability, searchText) {
+        viewModel.loadProducoes(
+            categoria = selectedCategory,
+            status = selectedAvailability,
+            searchQuery = searchText
         )
     }
 
@@ -71,20 +90,28 @@ fun ExposicoesAdmScreen() {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Image(painter = painterResource(id = R.drawable.logo_branca), contentDescription = "Logo Unifor", modifier = Modifier.size(50.dp))
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_branca),
+                            contentDescription = "Logo Unifor",
+                            modifier = Modifier.size(50.dp)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text("Exposições", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, NotificacoesActivity::class.java))
+                    }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                )
             )
         },
         bottomBar = {
@@ -111,7 +138,7 @@ fun ExposicoesAdmScreen() {
                     modifier = Modifier.padding(bottom = 16.dp)
                 )
 
-                // Search and Filter Section
+                // Search Field
                 OutlinedTextField(
                     value = searchText,
                     onValueChange = { searchText = it },
@@ -123,10 +150,12 @@ fun ExposicoesAdmScreen() {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Filter Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Category Dropdown
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = selectedCategory.ifEmpty { "Todos" },
@@ -141,9 +170,7 @@ fun ExposicoesAdmScreen() {
                         DropdownMenu(
                             expanded = showCategoryDropdown,
                             onDismissRequest = { showCategoryDropdown = false },
-                            modifier = Modifier
-                                .clip(MaterialTheme.shapes.extraSmall)
-                                .background(MaterialTheme.colorScheme.surface)
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             categories.forEach { category ->
                                 DropdownMenuItem(
@@ -157,11 +184,12 @@ fun ExposicoesAdmScreen() {
                         }
                     }
 
+                    // Status Dropdown
                     Box(modifier = Modifier.weight(1f)) {
                         OutlinedTextField(
                             value = selectedAvailability.ifEmpty { "Todos" },
                             onValueChange = {},
-                            label = { Text("Disponibilidade") },
+                            label = { Text("Status") },
                             trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -171,9 +199,7 @@ fun ExposicoesAdmScreen() {
                         DropdownMenu(
                             expanded = showAvailabilityDropdown,
                             onDismissRequest = { showAvailabilityDropdown = false },
-                            modifier = Modifier
-                                .clip(MaterialTheme.shapes.extraSmall)
-                                .background(MaterialTheme.colorScheme.surface)
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             availabilityOptions.forEach { availability ->
                                 DropdownMenuItem(
@@ -191,23 +217,81 @@ fun ExposicoesAdmScreen() {
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(submissions) { submission ->
-                    SubmissionCard(
-                        submission = submission,
-                        onStatusChange = { newStatus ->
-                            val index = submissions.indexOf(submission)
-                            if (index != -1) {
-                                submissions[index] = submission.copy(status = newStatus)
+            // Content based on state
+            when (val state = uiState) {
+                is ProducaoAdminUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ProducaoAdminUiState.Success -> {
+                    if (state.producoes.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Inbox,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "Nenhuma produção encontrada",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp
+                                )
                             }
-                        },
-                        onViewClick = { navigateToExposicaoDetailAdm(context) }
-                    )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(state.producoes) { producao ->
+                                ProducaoCard(
+                                    producao = producao,
+                                    onAprovar = { viewModel.aprovarProducao(producao.id) },
+                                    onReprovar = { motivo -> viewModel.reprovarProducao(producao.id, motivo) },
+                                    onViewClick = {
+                                        navigateToExposicaoDetailAdm(context, producao.id)
+                                    }
+                                )
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+                }
+                is ProducaoAdminUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Red
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                state.message,
+                                color = Color.Red,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(horizontal = 32.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -215,23 +299,25 @@ fun ExposicoesAdmScreen() {
 }
 
 @Composable
-fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onViewClick: () -> Unit) {
+fun ProducaoCard(
+    producao: Producao,
+    onAprovar: () -> Unit,
+    onReprovar: (String) -> Unit,
+    onViewClick: () -> Unit
+) {
     var showApproveDialog by remember { mutableStateOf(false) }
     var showRejectDialog by remember { mutableStateOf(false) }
+    var rejectReason by remember { mutableStateOf("") }
 
     if (showApproveDialog) {
         AlertDialog(
             onDismissRequest = { showApproveDialog = false },
             title = {
-                Text(
-                    "Confirmação",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Confirmação", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text(
-                    "Tem certeza que deseja aprovar a obra ao acervo?",
+                    "Tem certeza que deseja aprovar a obra \"${producao.titulo}\" ao acervo?",
                     fontSize = 16.sp
                 )
             },
@@ -239,7 +325,7 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
                 Button(
                     onClick = {
                         showApproveDialog = false
-                        onStatusChange("Aprovado")
+                        onAprovar()
                     },
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
@@ -249,9 +335,7 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
                 }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = { showApproveDialog = false }
-                ) {
+                OutlinedButton(onClick = { showApproveDialog = false }) {
                     Text("Não")
                 }
             }
@@ -262,36 +346,45 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
         AlertDialog(
             onDismissRequest = { showRejectDialog = false },
             title = {
-                Text(
-                    "Confirmação",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Text("Reprovar Produção", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             },
             text = {
-                Text(
-                    "Tem certeza que deseja reprovar a obra?",
-                    fontSize = 16.sp
-                )
+                Column {
+                    Text(
+                        "Informe o motivo da reprovação:",
+                        fontSize = 16.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = rejectReason,
+                        onValueChange = { rejectReason = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Motivo da reprovação") },
+                        minLines = 3,
+                        maxLines = 5
+                    )
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        showRejectDialog = false
-                        onStatusChange("Reprovado")
+                        if (rejectReason.isNotBlank()) {
+                            showRejectDialog = false
+                            onReprovar(rejectReason)
+                            rejectReason = ""
+                        }
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Sim")
+                    Text("Reprovar")
                 }
             },
             dismissButton = {
-                OutlinedButton(
-                    onClick = { showRejectDialog = false }
-                ) {
-                    Text("Não")
+                OutlinedButton(onClick = {
+                    showRejectDialog = false
+                    rejectReason = ""
+                }) {
+                    Text("Cancelar")
                 }
             }
         )
@@ -303,39 +396,75 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Book, contentDescription = "Book Icon", modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Book,
+                contentDescription = "Book Icon",
+                modifier = Modifier.size(40.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    submission.title,
+                    producao.titulo,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Text(submission.author, color = Color.Gray, fontSize = 14.sp)
-                Text(submission.rating, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                Text(
+                    producao.usuarioNome,
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+                Text(
+                    producao.categoria,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                )
+                producao.createdAt?.let { timestamp ->
+                    val date = timestamp.toDate()
+                    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    Text(
+                        formatter.format(date),
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
             }
             Column(horizontalAlignment = Alignment.End) {
-                val statusColor = when (submission.status) {
-                    "Aprovado" -> Color(0xFF388E3C)
-                    "Reprovado" -> Color.Red
-                    else -> Color.Gray
+                val statusColor = when (producao.status) {
+                    "aprovado" -> Color(0xFF388E3C)
+                    "reprovado" -> Color.Red
+                    else -> Color(0xFFFF9800)
                 }
-                Text(submission.status, color = statusColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                val statusText = when (producao.status) {
+                    "aprovado" -> "Aprovado"
+                    "reprovado" -> "Reprovado"
+                    else -> "Pendente"
+                }
+                Text(
+                    statusText,
+                    color = statusColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Row {
-                    TextButton(onClick = onViewClick) { Text("Ver") }
-                    TextButton(
-                        onClick = { showApproveDialog = true }
-                    ) {
-                        Text("Aprovar", color = Color(0xFF388E3C))
+                    TextButton(onClick = onViewClick) {
+                        Text("Ver")
                     }
-                    TextButton(
-                        onClick = { showRejectDialog = true }
-                    ) {
-                        Text("Reprovar", color = Color.Red)
+                    if (producao.status == "pendente") {
+                        TextButton(onClick = { showApproveDialog = true }) {
+                            Text("Aprovar", color = Color(0xFF388E3C))
+                        }
+                        TextButton(onClick = { showRejectDialog = true }) {
+                            Text("Reprovar", color = Color.Red)
+                        }
                     }
                 }
             }
@@ -343,23 +472,12 @@ fun SubmissionCard(submission: Submission, onStatusChange: (String) -> Unit, onV
     }
 }
 
-
-// --- Modelos e Navegação ---
-data class Submission(val title: String, val author: String, val rating: String, val status: String)
-
 private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
 
-private fun navigateToExposicaoDetailAdm(context: Context) {
-    context.startActivity(Intent(context, ExposicaoDetailAdm_Activity::class.java))
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun ExposicoesAdmScreenPreview() {
-    UniforLibraryTheme {
-        ExposicoesAdmScreen()
-    }
+private fun navigateToExposicaoDetailAdm(context: Context, producaoId: String) {
+    val intent = Intent(context, ExposicaoDetailAdm_Activity::class.java)
+    intent.putExtra("PRODUCAO_ID", producaoId)
+    context.startActivity(intent)
 }
