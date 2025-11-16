@@ -195,8 +195,7 @@ class CloudinaryService {
                 val paramsForSignature = mapOf(
                     "folder" to folder,
                     "public_id" to finalPublicId,
-                    "timestamp" to timestamp,
-                    "resource_type" to "raw" // Importante para documentos
+                    "timestamp" to timestamp
                 )
 
                 val signature = generateSignature(paramsForSignature)
