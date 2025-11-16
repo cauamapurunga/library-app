@@ -20,7 +20,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Ler credenciais do Cloudinary do local.properties
+        // Ler credenciais do local.properties
         val properties = Properties()
         val localPropertiesFile = rootProject.file("local.properties")
         if (localPropertiesFile.exists()) {
@@ -30,6 +30,7 @@ android {
         buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${properties.getProperty("cloudinary.cloud.name", "")}\"")
         buildConfigField("String", "CLOUDINARY_API_KEY", "\"${properties.getProperty("cloudinary.api.key", "")}\"")
         buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${properties.getProperty("cloudinary.api.secret", "")}\"")
+        buildConfigField("String", "GEMINI_API_KEY", "\"${properties.getProperty("gemini.api.key", "")}\"")
     }
 
     buildTypes {
@@ -83,6 +84,9 @@ dependencies {
 
     //cloudinary
     implementation("com.cloudinary:kotlin-url-gen:1.7.0")
+
+    //Gemini IA
+    implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
