@@ -142,6 +142,7 @@ data class Reservation(
 enum class ReservationStatus(val value: String) {
     PENDENTE("Pendente"),
     APROVADA("Aprovada"),
+    AGUARDANDO_RETIRADA("Aguardando Retirada"), // Usuário confirmou que vai retirar
     REJEITADA("Rejeitada"),
     RETIRADO("Retirado"),
     EXPIRADA("Expirada"),
