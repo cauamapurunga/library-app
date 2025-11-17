@@ -1,9 +1,12 @@
-package com.example.uniforlibrary.profile
+package com.example.uniforlibrary.viewmodel
 
 import android.content.Context
 import android.net.Uri
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.uniforlibrary.profile.ProfileRepository
+import com.example.uniforlibrary.profile.UserProfile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -58,7 +61,7 @@ class ProfileViewModel : ViewModel() {
                 return@launch
             }
 
-            if (!android.util.Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
+            if (!Patterns.EMAIL_ADDRESS.matcher(newEmail).matches()) {
                 _profileState.value = ProfileState.Error("Email inválido")
                 return@launch
             }

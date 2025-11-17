@@ -1,4 +1,4 @@
-package com.example.uniforlibrary.login
+package com.example.uniforlibrary.repository
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
