@@ -169,7 +169,6 @@ class ReservationRepository {
 
         val subscription = reservationsCollection
             .whereEqualTo("user_id", userId)
-            .orderBy("created_at", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     Log.e(TAG, "Erro ao buscar reservas do usuário", error)
@@ -186,7 +185,8 @@ class ReservationRepository {
                         Log.e(TAG, "Erro ao converter reserva: ${doc.id}", e)
                         null
                     }
-                } ?: emptyList()
+                }?.sortedByDescending { it.createdAt.toDate() } ?: emptyList()
+                // Ordenando no código ao invés do Firestore para evitar necessidade de índice composto
 
                 trySend(reservations)
             }
@@ -321,7 +321,8 @@ class ReservationRepository {
 
     /**
      * UPDATE - Marcar como retirada (Admin)
-     * Transição: Aprovada -> Retirado
+     * Transição: Aguardando Retirada -> Retirado
+     * IMPORTANTE: Só pode marcar como retirado se o usuário JÁ confirmou a retirada
      * IMPORTANTE: Cria automaticamente um empréstimo quando marcado como retirado
      */
     suspend fun markAsWithdrawn(
@@ -336,8 +337,8 @@ class ReservationRepository {
             }
 
             val currentStatus = reservationDoc.getString("status")
-            if (currentStatus != ReservationStatus.APROVADA.value) {
-                return Result.failure(Exception("Apenas reservas aprovadas podem ser marcadas como retiradas"))
+            if (currentStatus != ReservationStatus.AGUARDANDO_RETIRADA.value) {
+                return Result.failure(Exception("O usuário precisa confirmar a retirada primeiro"))
             }
 
             val withdrawalDate = Timestamp.now()
@@ -463,6 +464,37 @@ class ReservationRepository {
             Result.success(Unit)
         } catch (e: Exception) {
             Log.e(TAG, "Erro ao marcar como expirada", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * UPDATE - Usuário confirma que vai retirar o livro
+     * Transição: Aprovada -> Aguardando Retirada
+     */
+    suspend fun confirmWithdrawalByUser(reservationId: String): Result<Unit> {
+        return try {
+            val reservationDoc = reservationsCollection.document(reservationId).get().await()
+
+            if (!reservationDoc.exists()) {
+                return Result.failure(Exception("Reserva não encontrada"))
+            }
+
+            val currentStatus = reservationDoc.getString("status")
+            if (currentStatus != ReservationStatus.APROVADA.value) {
+                return Result.failure(Exception("Apenas reservas aprovadas podem ser confirmadas para retirada"))
+            }
+
+            val updates = hashMapOf<String, Any>(
+                "status" to ReservationStatus.AGUARDANDO_RETIRADA.value,
+                "updated_at" to Timestamp.now()
+            )
+
+            reservationsCollection.document(reservationId).update(updates).await()
+            Log.d(TAG, "Usuário confirmou retirada da reserva: $reservationId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao confirmar retirada", e)
             Result.failure(e)
         }
     }

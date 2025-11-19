@@ -8,6 +8,10 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,7 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOutline
@@ -331,21 +335,40 @@ fun AdminReservationCard(
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Book Icon
-            Surface(
+            // Book Cover Image
+            Box(
                 modifier = Modifier
                     .width(70.dp)
-                    .height(100.dp),
-                shape = RoundedCornerShape(8.dp),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    .height(100.dp)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Default.MenuBook,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                if (reservation.bookCoverUrl.isNotEmpty()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(reservation.bookCoverUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Capa do livro ${reservation.bookTitle}",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    // Fallback para quando não há imagem
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.MenuBook,
+                                contentDescription = null,
+                                modifier = Modifier.size(32.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
 
@@ -413,7 +436,8 @@ fun AdminReservationCard(
 fun StatusTag(status: String) {
     val (text, color) = when (status) {
         "Pendente" -> "Aprovação pendente" to Color(0xFFFFA000) // Laranja
-        "Aprovada" -> "Aprovada - Aguardando retirada" to Color(0xFF388E3C) // Verde
+        "Aprovada" -> "Aprovada - Aguardando usuário" to Color(0xFF388E3C) // Verde
+        "Aguardando Retirada" -> "Usuário confirmou - Pronto para retirar" to Color(0xFF1976D2) // Azul
         "Expirada" -> "Prazo Expirado" to Color(0xFFD32F2F) // Vermelho
         "Retirado" -> "Livro Retirado" to MaterialTheme.colorScheme.primary // Azul
         "Rejeitada" -> "Rejeitada" to Color(0xFFD32F2F) // Vermelho
@@ -478,11 +502,42 @@ fun AdminActionButtons(
                             color = Color.Gray
                         )
                     }
+                    Text(
+                        "⏳ Aguardando aluno confirmar retirada",
+                        fontSize = 10.sp,
+                        color = Color(0xFFFFA000),
+                        fontWeight = FontWeight.Medium
+                    )
+                    Button(
+                        onClick = { /* Desabilitado */ },
+                        enabled = false,
+                        modifier = Modifier.height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Text("Marcar como retirada", fontSize = 11.sp, textAlign = TextAlign.Center)
+                    }
+                }
+            }
+            "Aguardando Retirada" -> {
+                Column(horizontalAlignment = Alignment.End) {
+                    if (expirationDate != null) {
+                        Text(
+                            "Expira em: $expirationDate",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    }
+                    Text(
+                        "✅ Aluno confirmou! Pronto para entregar",
+                        fontSize = 10.sp,
+                        color = Color(0xFF388E3C),
+                        fontWeight = FontWeight.Bold
+                    )
                     Button(
                         onClick = {
                             openConfirmationDialog(
                                 "Marcar como Retirada",
-                                "Confirmar a RETIRADA do livro '${reservation.bookTitle}' pelo aluno ${reservation.userName}?"
+                                "Confirmar a RETIRADA do livro '${reservation.bookTitle}' pelo aluno ${reservation.userName}?\n\nApós confirmar, o empréstimo será criado automaticamente."
                             ) {
                                 viewModel.markAsWithdrawn(reservationId = reservation.id)
                             }
@@ -517,21 +572,46 @@ fun AdminActionButtons(
                 }
             }
             "Retirado" -> {
-                Text(
-                    "Retirado em: ${reservation.withdrawalDate?.let { 
-                        SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it.toDate()) 
-                    } ?: "N/A"}",
-                    fontSize = 10.sp,
-                    color = Color.Gray
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        "Retirado em: ${reservation.withdrawalDate?.let { 
+                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it.toDate()) 
+                        } ?: "N/A"}",
+                        fontSize = 10.sp,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Button(
+                        onClick = { /* Apenas visualização */ },
+                        enabled = false,
+                        modifier = Modifier.height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Text("Retirado", fontSize = 11.sp)
+                    }
+                }
             }
             "Rejeitada" -> {
-                Text(
-                    "Rejeitada",
-                    fontSize = 10.sp,
-                    color = Color.Red,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(horizontalAlignment = Alignment.End) {
+                    if (reservation.rejectionReason != null) {
+                        Text(
+                            "Motivo: ${reservation.rejectionReason}",
+                            fontSize = 10.sp,
+                            color = Color.Gray,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                    OutlinedButton(
+                        onClick = { /* Apenas visualização */ },
+                        enabled = false,
+                        modifier = Modifier.height(32.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Text("Rejeitada", fontSize = 11.sp)
+                    }
+                }
             }
         }
     }
