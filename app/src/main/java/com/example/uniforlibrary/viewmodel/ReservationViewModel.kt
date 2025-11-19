@@ -77,6 +77,7 @@ class ReservationViewModel : ViewModel() {
             }
             "Aprovados" -> _allReservations.value.filter {
                 it.status == ReservationStatus.APROVADA.value ||
+                it.status == ReservationStatus.AGUARDANDO_RETIRADA.value ||
                 it.status == ReservationStatus.REJEITADA.value
             }
             "Retirados" -> _allReservations.value.filter {
