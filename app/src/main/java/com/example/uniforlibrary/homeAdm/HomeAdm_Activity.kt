@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,6 +26,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.uniforlibrary.R
@@ -52,6 +55,8 @@ class HomeAdm_Activity : ComponentActivity() {
 @Composable
 fun HomeAdmScreen() {
     val context = LocalContext.current
+    val viewModel: com.example.uniforlibrary.viewmodel.HomeAdmViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
 
     Scaffold(
         topBar = {
@@ -93,7 +98,39 @@ fun HomeAdmScreen() {
             Spacer(modifier = Modifier.height(24.dp))
             QuickAccessAdmin(context)
             Spacer(modifier = Modifier.height(24.dp))
-            MetricsSection()
+
+            when (uiState) {
+                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxWidth().height(200.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error).message,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.loadMetrics() }) {
+                                Text("Tentar novamente")
+                            }
+                        }
+                    }
+                }
+                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success -> {
+                    val metrics = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success).metrics
+                    MetricsSection(metrics)
+                }
+            }
         }
     }
 }
@@ -152,13 +189,18 @@ fun QuickAccessButton(text: String, modifier: Modifier = Modifier, onClick: () -
 }
 
 @Composable
-fun MetricsSection() {
+fun MetricsSection(metrics: com.example.uniforlibrary.repository.HomeMetrics) {
     Column {
         Text("Visão rápida de métricas", fontSize = 20.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            MetricCircle(value = "342", label = "Empréstimos (30 dias)")
-            MetricCircle(value = "89", label = "Reservas ativas")
+            MetricCircle(value = metrics.loansLast30Days.toString(), label = "Empréstimos (30 dias)")
+            MetricCircle(value = metrics.activeReservations.toString(), label = "Reservas ativas")
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            MetricCircle(value = metrics.totalBooks.toString(), label = "Total de livros")
+            MetricCircle(value = metrics.activeUsers.toString(), label = "Usuários ativos")
         }
     }
 }
