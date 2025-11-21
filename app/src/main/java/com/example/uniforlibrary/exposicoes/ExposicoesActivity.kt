@@ -6,6 +6,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,26 +19,35 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.model.BottomNavItem
+import com.example.uniforlibrary.model.Producao
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.ExposicoesUiState
+import com.example.uniforlibrary.viewmodel.ExposicoesViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class ExposicoesActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,7 +64,16 @@ class ExposicoesActivity : ComponentActivity() {
 @Composable
 fun ExposicoesScreen() {
     val context = LocalContext.current
-    var selectedItemIndex by remember { mutableIntStateOf(5) } // Exposições selecionado
+    val viewModel: ExposicoesViewModel = viewModel()
+    val uiState by viewModel.uiState.collectAsState()
+
+    var selectedItemIndex by remember { mutableIntStateOf(5) }
+    var searchText by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf("") }
+    var showCategoryDropdown by remember { mutableStateOf(false) }
+
+    val categories = listOf("Todos", "Cordel", "Artigo", "Produção", "Conto")
+
     val navigationItems = listOf(
         BottomNavItem("Home", Icons.Default.Home, 0),
         BottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1),
@@ -63,24 +83,33 @@ fun ExposicoesScreen() {
         BottomNavItem("Exposições", Icons.Default.PhotoLibrary, 5)
     )
 
-    val exhibitions = listOf(
-        Exhibition("PathExileLORE", "Narak - 2020", "★5", true),
-        Exhibition("WOW", "Aliens - 1977", "★4.8", false),
-        Exhibition("How to build you upper/lower exercises", "JohnDoe - 2025", "★4.1", false)
-    )
+    LaunchedEffect(selectedCategory, searchText) {
+        val categoriaFiltro = if (selectedCategory == "Todos" || selectedCategory.isEmpty()) "" else selectedCategory
+
+        viewModel.loadApprovedProducoes(
+            categoria = categoriaFiltro,
+            searchQuery = searchText
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Image(painter = painterResource(id = R.drawable.logo_branca), contentDescription = "Logo Unifor", modifier = Modifier.size(50.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(id = R.drawable.logo_branca),
+                            contentDescription = "Logo Unifor",
+                            modifier = Modifier.size(50.dp)
+                        )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Exposições", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("Exposições", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
+                    IconButton(onClick = {
+                        context.startActivity(Intent(context, NotificacoesActivity::class.java))
+                    }) {
                         Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
@@ -95,7 +124,7 @@ fun ExposicoesScreen() {
                 NavigationBar(
                     containerColor = Color.White,
                     tonalElevation = 0.dp,
-                    modifier = Modifier.height(72.dp).padding(vertical = 4.dp, horizontal = 4.dp)
+                    modifier = Modifier.height(80.dp).padding(vertical = 8.dp, horizontal = 4.dp)
                 ) {
                     navigationItems.forEach { item ->
                         NavigationBarItem(
@@ -114,14 +143,14 @@ fun ExposicoesScreen() {
                             label = {
                                 Text(
                                     text = item.label,
-                                    fontSize = 8.sp,
-                                    maxLines = 1,
+                                    fontSize = 7.sp,
+                                    maxLines = 2,
                                     textAlign = TextAlign.Center,
-                                    fontWeight = if (selectedItemIndex == item.index) FontWeight.Bold else FontWeight.Medium,
-                                    modifier = Modifier.padding(top = 2.dp)
+                                    lineHeight = 9.sp,
+                                    fontWeight = if (selectedItemIndex == item.index) FontWeight.Bold else FontWeight.Medium
                                 )
                             },
-                            icon = { Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(22.dp)) },
+                            icon = { Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(24.dp)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -139,110 +168,251 @@ fun ExposicoesScreen() {
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
         ) {
-            item {
-                FilterSection()
-            }
-            items(exhibitions) { exhibition ->
-                ExhibitionCard(exhibition, onReserveClick = { navigateToExhibitionDetail(context) })
-            }
-        }
-    }
-}
-
-@Composable
-fun FilterSection() {
-    Column {
-        OutlinedTextField(
-            value = "",
-            onValueChange = {},
-            placeholder = { Text("Pesquisar por título, autor ou categoria") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                label = { Text("Categoria") },
-                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                modifier = Modifier.weight(1f),
-                readOnly = true
-            )
-            OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                label = { Text("Disponibilidade") },
-                trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                modifier = Modifier.weight(1f),
-                readOnly = true
-            )
-        }
-    }
-}
-
-@Composable
-fun ExhibitionCard(exhibition: Exhibition, onReserveClick: () -> Unit) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Book, contentDescription = "Book Icon", modifier = Modifier.size(40.dp), tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(exhibition.title, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(exhibition.author, color = Color.Gray, fontSize = 14.sp)
-                Text(exhibition.rating, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-            }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    if (exhibition.isAvailable) "Disponível" else "Emprestado",
-                    color = if (exhibition.isAvailable) Color(0xFF388E3C) else Color.Red,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 12.sp
+            // Filter Section
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { searchText = it },
+                    placeholder = { Text("Pesquisar por título ou autor") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
+
                 Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    onClick = onReserveClick,
-                    enabled = exhibition.isAvailable,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-                ) {
-                    Text("Reservar", fontSize = 12.sp)
+
+                // Category Dropdown
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = selectedCategory.ifEmpty { "Todos" },
+                        onValueChange = {},
+                        label = { Text("Categoria") },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                modifier = Modifier.clickable { showCategoryDropdown = !showCategoryDropdown }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        readOnly = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
+                    )
+                    DropdownMenu(
+                        expanded = showCategoryDropdown,
+                        onDismissRequest = { showCategoryDropdown = false }
+                    ) {
+                        categories.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category) },
+                                onClick = {
+                                    selectedCategory = if (category == "Todos") "" else category
+                                    showCategoryDropdown = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Content based on state
+            when (val state = uiState) {
+                is ExposicoesUiState.Loading -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+                is ExposicoesUiState.Success -> {
+                    if (state.producoes.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Inbox,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(64.dp),
+                                    tint = Color.Gray
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "Nenhuma exposição encontrada",
+                                    color = Color.Gray,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(state.producoes) { producao ->
+                                ProducaoCardUser(producao, onViewClick = {
+                                    navigateToExhibitionDetail(context)
+                                })
+                            }
+                            item {
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                        }
+                    }
+                }
+                is ExposicoesUiState.Error -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = Color.Red
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                state.message,
+                                color = Color.Red,
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(horizontal = 32.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
     }
 }
 
-// --- Modelos e Navegação ---
-data class Exhibition(val title: String, val author: String, val rating: String, val isAvailable: Boolean)
+@Composable
+fun ProducaoCardUser(producao: Producao, onViewClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Capa da produção
+            if (producao.fotoUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = producao.fotoUrl,
+                    contentDescription = "Capa de ${producao.titulo}",
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Book,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(16.dp))
 
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    producao.titulo,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    producao.usuarioNome,
+                    color = Color.Gray,
+                    fontSize = 14.sp
+                )
+                Text(
+                    producao.categoria,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                )
+                producao.createdAt?.let { timestamp ->
+                    val date = timestamp.toDate()
+                    val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    Text(
+                        formatter.format(date),
+                        color = Color.Gray,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Column(horizontalAlignment = Alignment.End) {
+                Button(
+                    onClick = onViewClick,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text("Ver detalhes", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+// --- Navegação ---
 private fun navigateToHome(context: Context) {
     context.startActivity(Intent(context, HomeActivity::class.java))
 }
+
 private fun navigateToAcervo(context: Context) {
     context.startActivity(Intent(context, AcervoActivity::class.java))
 }
+
 private fun navigateToReservations(context: Context) {
     context.startActivity(Intent(context, MyReservationsActivity::class.java))
 }
+
 private fun navigateToProduzir(context: Context) {
     context.startActivity(Intent(context, ProduzirActivity::class.java))
 }
+
 private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
+
 private fun navigateToExhibitionDetail(context: Context) {
     context.startActivity(Intent(context, ExhibitionDetailActivity::class.java))
 }
+
 private fun navigateToEmprestimos(context: Context) {
     context.startActivity(Intent(context, EmprestimosActivity::class.java))
 }
@@ -254,3 +424,4 @@ fun ExposicoesScreenPreview() {
         ExposicoesScreen()
     }
 }
+

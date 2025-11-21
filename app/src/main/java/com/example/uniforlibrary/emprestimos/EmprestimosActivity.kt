@@ -418,7 +418,7 @@ fun LoanCard(
                 if (loan.status != "Devolvido") {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         if (canRenew) {
                             Button(
@@ -430,8 +430,10 @@ fun LoanCard(
                                         viewModel.renewLoan(loan.id)
                                     }
                                 },
-                                modifier = Modifier.height(32.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(32.dp),
+                                contentPadding = PaddingValues(horizontal = 8.dp)
                             ) {
                                 Icon(
                                     Icons.Default.Refresh,
@@ -441,20 +443,50 @@ fun LoanCard(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Renovar", fontSize = 11.sp)
                             }
-                        } else if (isLate) {
-                            Text(
-                                "⚠️ Atrasado - Devolva para renovar",
-                                fontSize = 10.sp,
-                                color = Color.Red,
-                                fontWeight = FontWeight.Bold
-                            )
-                        } else if (loan.renewalCount >= loan.maxRenewals) {
-                            Text(
-                                "Limite de renovações atingido",
-                                fontSize = 10.sp,
-                                color = Color.Gray
-                            )
                         }
+
+                        Button(
+                            onClick = {
+                                openConfirmationDialog(
+                                    "Devolver Livro",
+                                    "Confirma a devolução de '${loan.bookTitle}'?"
+                                ) {
+                                    viewModel.returnLoan(loan.id)
+                                }
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(32.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF388E3C)
+                            )
+                        ) {
+                            Icon(
+                                Icons.Default.CheckCircle,
+                                contentDescription = "Devolver",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Devolver", fontSize = 11.sp)
+                        }
+                    }
+
+                    if (!canRenew && !isLate && loan.renewalCount >= loan.maxRenewals) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Limite de renovações atingido",
+                            fontSize = 10.sp,
+                            color = Color.Gray
+                        )
+                    } else if (isLate) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "⚠️ Atrasado - Devolva o livro",
+                            fontSize = 10.sp,
+                            color = Color.Red,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }

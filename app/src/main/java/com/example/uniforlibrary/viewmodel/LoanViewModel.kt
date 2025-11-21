@@ -143,6 +143,48 @@ class LoanViewModel : ViewModel() {
             }
         }
     }
+
+    /**
+     * Devolver empréstimo
+     */
+    fun returnLoan(
+        loanId: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            try {
+                val result = repository.returnLoan(loanId)
+
+                result.onSuccess {
+                    _feedbackMessage.value = "✅ Livro devolvido com sucesso!"
+                    Log.d(TAG, "Empréstimo devolvido: $loanId")
+                    onSuccess()
+
+                    kotlinx.coroutines.delay(3000)
+                    _feedbackMessage.value = null
+                }
+
+                result.onFailure { error ->
+                    val errorMsg = error.message ?: "Erro ao devolver livro"
+                    _feedbackMessage.value = "❌ $errorMsg"
+                    Log.e(TAG, "Erro ao devolver empréstimo", error)
+                    onError(errorMsg)
+
+                    kotlinx.coroutines.delay(3000)
+                    _feedbackMessage.value = null
+                }
+            } catch (e: Exception) {
+                val errorMsg = e.message ?: "Erro desconhecido"
+                _feedbackMessage.value = "❌ $errorMsg"
+                Log.e(TAG, "Exceção ao devolver empréstimo", e)
+                onError(errorMsg)
+
+                kotlinx.coroutines.delay(3000)
+                _feedbackMessage.value = null
+            }
+        }
+    }
 }
 
 /**

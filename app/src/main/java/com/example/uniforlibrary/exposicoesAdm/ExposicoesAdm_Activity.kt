@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -65,7 +67,7 @@ fun ExposicoesAdmScreen() {
     var showCategoryDropdown by remember { mutableStateOf(false) }
     var showAvailabilityDropdown by remember { mutableStateOf(false) }
 
-    val categories = listOf("Todos", "Cordel", "Artigo", "TCC", "Conto", "Produção")
+    val categories = listOf("Todos", "Cordel", "Artigo", "Produção", "Conto")
     val availabilityOptions = listOf("Todos", "Pendente", "Aprovado", "Reprovado")
 
     // Exibir resultado de ações
@@ -78,9 +80,12 @@ fun ExposicoesAdmScreen() {
 
     // Aplicar filtros quando mudarem
     LaunchedEffect(selectedCategory, selectedAvailability, searchText) {
+        val categoriaFiltro = if (selectedCategory == "Todos" || selectedCategory.isEmpty()) "" else selectedCategory
+        val statusFiltro = if (selectedAvailability == "Todos" || selectedAvailability.isEmpty()) "" else selectedAvailability
+
         viewModel.loadProducoes(
-            categoria = selectedCategory,
-            status = selectedAvailability,
+            categoria = categoriaFiltro,
+            status = statusFiltro,
             searchQuery = searchText
         )
     }
@@ -161,16 +166,23 @@ fun ExposicoesAdmScreen() {
                             value = selectedCategory.ifEmpty { "Todos" },
                             onValueChange = {},
                             label = { Text("Categoria") },
-                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showCategoryDropdown = true },
-                            readOnly = true
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.clickable { showCategoryDropdown = !showCategoryDropdown }
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            )
                         )
                         DropdownMenu(
                             expanded = showCategoryDropdown,
-                            onDismissRequest = { showCategoryDropdown = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            onDismissRequest = { showCategoryDropdown = false }
                         ) {
                             categories.forEach { category ->
                                 DropdownMenuItem(
@@ -190,16 +202,23 @@ fun ExposicoesAdmScreen() {
                             value = selectedAvailability.ifEmpty { "Todos" },
                             onValueChange = {},
                             label = { Text("Status") },
-                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showAvailabilityDropdown = true },
-                            readOnly = true
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.ArrowDropDown,
+                                    contentDescription = null,
+                                    modifier = Modifier.clickable { showAvailabilityDropdown = !showAvailabilityDropdown }
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            readOnly = true,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            )
                         )
                         DropdownMenu(
                             expanded = showAvailabilityDropdown,
-                            onDismissRequest = { showAvailabilityDropdown = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                            onDismissRequest = { showAvailabilityDropdown = false }
                         ) {
                             availabilityOptions.forEach { availability ->
                                 DropdownMenuItem(
@@ -400,12 +419,35 @@ fun ProducaoCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                Icons.Default.Book,
-                contentDescription = "Book Icon",
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+            // Capa da produção
+            if (producao.fotoUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = producao.fotoUrl,
+                    contentDescription = "Capa de ${producao.titulo}",
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(90.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Book,
+                            contentDescription = null,
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(

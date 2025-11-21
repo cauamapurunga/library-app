@@ -134,5 +134,44 @@ class LoanRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Marcar empréstimo como devolvido pelo usuário
+     */
+    suspend fun returnLoan(loanId: String): Result<Unit> {
+        return try {
+            val loanRef = loansCollection.document(loanId)
+            val loan = loanRef.get().await().toObject(Loan::class.java)
+
+            if (loan == null) {
+                return Result.failure(Exception("Empréstimo não encontrado"))
+            }
+
+            if (loan.status == "Devolvido") {
+                return Result.failure(Exception("Este empréstimo já foi devolvido"))
+            }
+
+            // Atualizar status do empréstimo
+            loanRef.update(
+                mapOf(
+                    "status" to "Devolvido",
+                    "return_date" to Timestamp.now()
+                )
+            ).await()
+
+            // Atualizar disponibilidade do livro
+            if (loan.bookId.isNotEmpty()) {
+                booksCollection.document(loan.bookId)
+                    .update("disponivel", true)
+                    .await()
+            }
+
+            Log.d(TAG, "✅ Empréstimo devolvido com sucesso: $loanId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "Erro ao devolver empréstimo", e)
+            Result.failure(e)
+        }
+    }
 }
 

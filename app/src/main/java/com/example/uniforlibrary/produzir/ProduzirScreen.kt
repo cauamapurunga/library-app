@@ -164,45 +164,51 @@ fun ProduzirScreen(onBack: () -> Unit) {
             )
         },
         bottomBar = {
-            NavigationBar(
-                containerColor = Color.White,
-                modifier = Modifier.height(72.dp).padding(vertical = 4.dp, horizontal = 4.dp)
-            ) {
-                navigationItems.forEach { item ->
-                    NavigationBarItem(
-                        selected = selectedItemIndex == item.index,
-                        onClick = {
-                            selectedItemIndex = item.index
-                            when (item.index) {
-                                0 -> navigateToHome(context)
-                                1 -> navigateToAcervo(context)
-                                2 -> navigateToEmprestimos(context)
-                                3 -> navigateToReservations(context)
-                                4 -> { /* Já está na tela Produzir */ }
-                                5 -> navigateToExposicoes(context)
-                            }
-                        },
-                        label = {
-                            Text(
-                                text = item.label,
-                                fontSize = 8.sp,
-                                maxLines = 1,
-                                textAlign = TextAlign.Center,
-                                fontWeight = if (selectedItemIndex == item.index) FontWeight.Bold else FontWeight.Medium,
-                                modifier = Modifier.padding(top = 2.dp)
+            Surface(tonalElevation = 0.dp, shadowElevation = 16.dp, color = Color.White) {
+                NavigationBar(
+                    containerColor = Color.White,
+                    tonalElevation = 0.dp,
+                    modifier = Modifier
+                        .height(80.dp)
+                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                ) {
+                    navigationItems.forEach { item ->
+                        NavigationBarItem(
+                            selected = selectedItemIndex == item.index,
+                            onClick = {
+                                selectedItemIndex = item.index
+                                when (item.index) {
+                                    0 -> navigateToHome(context)
+                                    1 -> navigateToAcervo(context)
+                                    2 -> navigateToEmprestimos(context)
+                                    3 -> navigateToReservations(context)
+                                    4 -> { /* Já está na tela Produzir */ }
+                                    5 -> navigateToExposicoes(context)
+                                }
+                            },
+                            label = {
+                                Text(
+                                    text = item.label,
+                                    fontSize = 7.sp,
+                                    maxLines = 2,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 9.sp,
+                                    fontWeight = if (selectedItemIndex == item.index) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            },
+                            icon = {
+                                Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(24.dp))
+                            },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                unselectedIconColor = Color(0xFF666666),
+                                unselectedTextColor = Color(0xFF666666),
+                                indicatorColor = Color.Transparent
                             )
-                        },
-                        icon = {
-                            Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(22.dp))
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                            unselectedIconColor = Color(0xFF666666),
-                            unselectedTextColor = Color(0xFF666666),
-                            indicatorColor = Color.Transparent
                         )
-                    )
+                    }
                 }
             }
         },
