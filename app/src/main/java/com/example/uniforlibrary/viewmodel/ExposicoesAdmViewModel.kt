@@ -39,16 +39,16 @@ class ProducaoAdminViewModel : ViewModel() {
             try {
                 _uiState.value = ProducaoAdminUiState.Loading
 
+                // Base query
                 var query: Query = firestore.collection("producoes")
-                    .orderBy("created_at", Query.Direction.DESCENDING)
 
                 // Filtrar por categoria
-                if (categoria.isNotEmpty() && categoria != "Todos") {
+                if (categoria.isNotEmpty()) {
                     query = query.whereEqualTo("categoria", categoria)
                 }
 
                 // Filtrar por status
-                if (status.isNotEmpty() && status != "Todos") {
+                if (status.isNotEmpty()) {
                     val statusFiltro = when (status) {
                         "Pendente" -> "pendente"
                         "Aprovado" -> "aprovado"
@@ -69,6 +69,9 @@ class ProducaoAdminViewModel : ViewModel() {
                         null
                     }
                 }
+
+                // Ordenar por data no cliente (evita índice composto no Firebase)
+                producoes = producoes.sortedByDescending { it.createdAt }
 
                 // Filtrar por busca (título ou autor) - feito no cliente
                 if (searchQuery.isNotEmpty()) {
