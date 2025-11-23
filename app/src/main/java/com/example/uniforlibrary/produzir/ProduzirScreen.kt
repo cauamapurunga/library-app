@@ -215,7 +215,7 @@ fun ProduzirScreen(onBack: () -> Unit) {
         floatingActionButton = {
             Chatbot(context = context)
         },
-        floatingActionButtonPosition = FabPosition.Start,
+        floatingActionButtonPosition = FabPosition.End,
         content = { innerPadding ->
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(

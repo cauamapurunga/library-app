@@ -152,7 +152,7 @@ fun EmprestimosScreen(viewModel: LoanViewModel = viewModel()) {
         floatingActionButton = {
             Chatbot(context = context)
         },
-        floatingActionButtonPosition = FabPosition.Start,
+        floatingActionButtonPosition = FabPosition.End,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(

@@ -231,7 +231,7 @@ fun AcervoScreen() {
         floatingActionButton = {
              Chatbot(context = context)
         },
-        floatingActionButtonPosition = FabPosition.Start
+        floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
         Column(
             modifier = Modifier

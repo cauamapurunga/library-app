@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
-import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.model.Reservation
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -197,9 +196,6 @@ fun ReservasADMScreen(viewModel: ReservationViewModel = viewModel()) {
         },
         bottomBar = {
             AdminBottomNav(context = context, selectedItemIndex = 3)
-        },
-        floatingActionButton = {
-            Chatbot(context = context)
         },
         floatingActionButtonPosition = FabPosition.Start,
         snackbarHost = { SnackbarHost(snackbarHostState) }

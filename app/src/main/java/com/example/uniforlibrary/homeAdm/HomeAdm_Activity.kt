@@ -32,7 +32,6 @@ import androidx.compose.ui.unit.sp
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
 import com.example.uniforlibrary.components.AdminBottomNav
-import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.exposicoesAdm.ExposicoesAdm_Activity
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -81,9 +80,6 @@ fun HomeAdmScreen() {
         },
         bottomBar = {
             AdminBottomNav(context = context, selectedItemIndex = 0)
-        },
-        floatingActionButton = {
-            Chatbot(context = context)
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->
