@@ -42,7 +42,6 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
-import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.model.Book
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
@@ -147,7 +146,6 @@ fun AcervoAdmScreen() {
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                Chatbot(context = context)
             }
         },
         floatingActionButtonPosition = FabPosition.Start

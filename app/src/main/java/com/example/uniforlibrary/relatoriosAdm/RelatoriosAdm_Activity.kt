@@ -65,7 +65,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
-import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.exposicoesAdm.ExposicoesAdm_Activity
 import com.example.uniforlibrary.homeAdm.HomeAdm_Activity
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
@@ -126,9 +125,6 @@ fun RelatoriosAdmScreen() {
         },
         bottomBar = {
             AdminBottomNav(context = context, selectedItemIndex = 4)
-        },
-        floatingActionButton = {
-            Chatbot(context = context)
         },
         floatingActionButtonPosition = FabPosition.Start
     ) { innerPadding ->

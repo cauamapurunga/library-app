@@ -166,7 +166,7 @@ fun ExposicoesScreen() {
         floatingActionButton = {
             Chatbot(context = context)
         },
-        floatingActionButtonPosition = FabPosition.Start
+        floatingActionButtonPosition = FabPosition.End
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -267,7 +267,7 @@ fun ExposicoesScreen() {
                         ) {
                             items(state.producoes) { producao ->
                                 ProducaoCardUser(producao, onViewClick = {
-                                    navigateToExhibitionDetail(context)
+                                    navigateToExhibitionDetail(context, producao.id)
                                 })
                             }
                             item {
@@ -304,7 +304,7 @@ fun ExposicoesScreen() {
 }
 
 @Composable
-fun ProducaoCardUser(producao: Producao, onViewClick: () -> Unit) {
+fun ProducaoCardUser(producao: Producao, onViewClick: (String) -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -378,7 +378,10 @@ fun ProducaoCardUser(producao: Producao, onViewClick: () -> Unit) {
 
             Column(horizontalAlignment = Alignment.End) {
                 Button(
-                    onClick = onViewClick,
+                    onClick = {
+                        // Passa o ID da produção para a função callback
+                        producao.id?.let { onViewClick(it) }
+                    },
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text("Ver detalhes", fontSize = 12.sp)
@@ -409,10 +412,12 @@ private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
 
-private fun navigateToExhibitionDetail(context: Context) {
-    context.startActivity(Intent(context, ExhibitionDetailActivity::class.java))
-}
 
+private fun navigateToExhibitionDetail(context: Context, producaoId: String) {
+    context.startActivity(
+        ExhibitionDetailActivity.newIntent(context, producaoId)
+    )
+}
 private fun navigateToEmprestimos(context: Context) {
     context.startActivity(Intent(context, EmprestimosActivity::class.java))
 }

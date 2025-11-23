@@ -118,7 +118,7 @@ fun MyReservationsScreen(viewModel: UserReservationViewModel = viewModel()) {
         floatingActionButton = {
             Chatbot(context = context)
         },
-        floatingActionButtonPosition = FabPosition.Start,
+        floatingActionButtonPosition = FabPosition.End,
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         Column(
