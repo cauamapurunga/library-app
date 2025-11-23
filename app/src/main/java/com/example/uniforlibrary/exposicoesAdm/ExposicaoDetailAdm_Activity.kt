@@ -137,12 +137,30 @@ fun ExposicaoDetailAdmScreen(producaoId: String, onBack: () -> Unit) {
                     onApprove = { showApproveDialog = true },
                     onReject = { showRejectDialog = true },
                     onOpenFile = { url ->
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(Uri.parse(url), "application/pdf")
-                            flags = Intent.FLAG_ACTIVITY_NO_HISTORY
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                data = Uri.parse(url)
+                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            // Se falhar, tenta abrir com chooser explícito
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW).apply {
+                                    setDataAndType(Uri.parse(url), "application/pdf")
+                                    addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                }
+                                val chooser = Intent.createChooser(intent, "Abrir PDF com...")
+                                context.startActivity(chooser)
+                            } catch (ex: Exception) {
+                                Toast.makeText(
+                                    context,
+                                    "Erro ao abrir PDF: ${ex.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
-                        val chooser = Intent.createChooser(intent, "Abrir PDF com...")
-                        context.startActivity(chooser)
                     },
                     modifier = Modifier.padding(innerPadding)
                 )
