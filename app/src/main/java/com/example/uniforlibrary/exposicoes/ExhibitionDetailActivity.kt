@@ -407,26 +407,22 @@ private fun navigateToReading(context: Context, pdfUrl: String) {
     try {
         val intent = Intent(Intent.ACTION_VIEW).apply {
             data = android.net.Uri.parse(pdfUrl)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            type = "application/pdf"
+            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(intent)
+
+        // Cria o chooser para forçar a seleção de aplicativo
+        val chooserIntent = Intent.createChooser(intent, "Escolha um aplicativo para abrir o PDF")
+        chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        context.startActivity(chooserIntent)
     } catch (e: Exception) {
-        // Se falhar, tenta abrir com chooser explícito
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(android.net.Uri.parse(pdfUrl), "application/pdf")
-                addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            val chooser = Intent.createChooser(intent, "Abrir PDF com...")
-            context.startActivity(chooser)
-        } catch (ex: Exception) {
-            android.widget.Toast.makeText(
-                context,
-                "Erro ao abrir PDF: ${ex.message}",
-                android.widget.Toast.LENGTH_SHORT
-            ).show()
-        }
+        android.widget.Toast.makeText(
+            context,
+            "Erro ao abrir PDF. Instale um leitor de PDF.",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
 }
 
