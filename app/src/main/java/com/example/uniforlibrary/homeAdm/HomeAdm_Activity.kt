@@ -13,11 +13,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,11 +24,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.acervo.BookDetailActivity
+import com.example.uniforlibrary.model.Book
+import com.example.uniforlibrary.viewmodel.BookViewModel
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
 import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.exposicoesAdm.ExposicoesAdm_Activity
@@ -55,7 +58,11 @@ class HomeAdm_Activity : ComponentActivity() {
 fun HomeAdmScreen() {
     val context = LocalContext.current
     val viewModel: com.example.uniforlibrary.viewmodel.HomeAdmViewModel = viewModel()
+    val bookViewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val searchResults by bookViewModel.searchResults.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -90,41 +97,66 @@ fun HomeAdmScreen() {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            SearchBarAdmin()
-            Spacer(modifier = Modifier.height(24.dp))
-            QuickAccessAdmin(context)
-            Spacer(modifier = Modifier.height(24.dp))
-
-            when (uiState) {
-                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
+            SearchBarAdmin(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { query ->
+                    searchQuery = query
+                    isSearching = query.isNotBlank()
+                    bookViewModel.searchBooks(query)
+                },
+                onClearSearch = {
+                    searchQuery = ""
+                    isSearching = false
+                    bookViewModel.searchBooks("")
                 }
-                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxWidth().height(200.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error).message,
-                                color = MaterialTheme.colorScheme.error,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(onClick = { viewModel.loadMetrics() }) {
-                                Text("Tentar novamente")
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Search Results Section (shown when searching)
+            if (isSearching) {
+                SearchResultsSectionAdmin(
+                    searchQuery = searchQuery,
+                    searchResults = searchResults,
+                    context = context
+                )
+            } else {
+                // Normal Home Content (shown when not searching)
+                Spacer(modifier = Modifier.height(8.dp))
+                QuickAccessAdmin(context)
+                Spacer(modifier = Modifier.height(24.dp))
+
+                when (uiState) {
+                    is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Loading -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error -> {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Error).message,
+                                    color = MaterialTheme.colorScheme.error,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Button(onClick = { viewModel.loadMetrics() }) {
+                                    Text("Tentar novamente")
+                                }
                             }
                         }
                     }
-                }
-                is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success -> {
-                    val metrics = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success).metrics
-                    MetricsSection(metrics)
+                    is com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success -> {
+                        val metrics = (uiState as com.example.uniforlibrary.viewmodel.HomeAdmUiState.Success).metrics
+                        MetricsSection(metrics)
+                    }
                 }
             }
         }
@@ -132,26 +164,229 @@ fun HomeAdmScreen() {
 }
 
 @Composable
-fun SearchBarAdmin() {
+fun SearchBarAdmin(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Text(
+                text = "Biblioteca Universitária",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Pesquise títulos, gerencie empréstimos e acompanhe os relatórios.",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = {
+                    Text(
+                        "Pesquisar livros por título, autor ou gênero...",
+                        fontSize = 14.sp,
+                        color = Color.Gray
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = "Pesquisar",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = onClearSearch) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Limpar pesquisa",
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = TextFieldDefaults.colors(
+                    focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                    unfocusedIndicatorColor = Color.LightGray,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                singleLine = true
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchResultsSectionAdmin(
+    searchQuery: String,
+    searchResults: List<Book>,
+    context: Context
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text("Biblioteca Universitária", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("Pesquise títulos, gerencie empréstimos e acompanhe os relatórios.", fontSize = 12.sp, lineHeight = 14.sp)
+            Text(
+                text = "Resultados da pesquisa",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "${searchResults.size} livro(s)",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Pesquisando por: \"$searchQuery\"",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (searchResults.isEmpty()) {
+            // Empty state
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.SearchOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Nenhum livro encontrado",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tente pesquisar com outras palavras-chave",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
-            Spacer(modifier = Modifier.width(8.dp))
-            OutlinedButton(onClick = { /* TODO */ }) {
-                Icon(Icons.Default.Search, contentDescription = "Pesquisar", modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Pesquisar", fontSize = 12.sp)
+        } else {
+            // Results list - Simple book names only
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    searchResults.forEach { book ->
+                        SearchResultItemAdmin(book = book, context = context)
+                        if (book != searchResults.last()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = Color.LightGray.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchResultItemAdmin(book: Book, context: Context) {
+    Surface(
+        onClick = {
+            val intent = Intent(context, AcervoAdm_Activity::class.java)
+            intent.putExtra("BOOK_ID", book.id)
+            context.startActivity(intent)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.MenuBook,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = book.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Ver detalhes",
+                modifier = Modifier.size(20.dp),
+                tint = Color.Gray
+            )
         }
     }
 }
@@ -219,7 +454,7 @@ fun MetricCircle(value: String, label: String) {
     }
 }
 
-// --- Modelos e Navegação ---
+// --- Navegação ---
 private fun navigateToAcervoAdm(context: Context) {
     context.startActivity(Intent(context, AcervoAdm_Activity::class.java))
 }
