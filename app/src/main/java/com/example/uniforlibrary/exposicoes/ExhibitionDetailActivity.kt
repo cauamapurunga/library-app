@@ -405,18 +405,25 @@ private fun navigateToProfile(context: Context) {
 
 private fun navigateToReading(context: Context, pdfUrl: String) {
     try {
+        // Cria um intent genérico para visualizar o conteúdo
         val intent = Intent(Intent.ACTION_VIEW).apply {
-            data = android.net.Uri.parse(pdfUrl)
-            type = "application/pdf"
-            addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            setDataAndType(android.net.Uri.parse(pdfUrl), "application/pdf")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
 
-        // Cria o chooser para forçar a seleção de aplicativo
-        val chooserIntent = Intent.createChooser(intent, "Escolha um aplicativo para abrir o PDF")
-        chooserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        // Verifica se há aplicativos disponíveis
+        val packageManager = context.packageManager
+        val activities = packageManager.queryIntentActivities(intent, 0)
 
-        context.startActivity(chooserIntent)
+        if (activities.isNotEmpty()) {
+            // Cria o chooser para forçar a seleção de aplicativo
+            val chooserIntent = Intent.createChooser(intent, "Escolha um aplicativo para abrir o PDF")
+            context.startActivity(chooserIntent)
+        } else {
+            // Se não houver apps, tenta abrir no navegador
+            val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(pdfUrl))
+            context.startActivity(browserIntent)
+        }
     } catch (e: Exception) {
         android.widget.Toast.makeText(
             context,
