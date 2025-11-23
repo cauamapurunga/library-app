@@ -404,10 +404,12 @@ private fun navigateToProfile(context: Context) {
 }
 
 private fun navigateToReading(context: Context, pdfUrl: String) {
-    val intent = Intent(context, ReadingActivity::class.java).apply {
-        putExtra("PDF_URL", pdfUrl)
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(android.net.Uri.parse(pdfUrl), "application/pdf")
+        flags = Intent.FLAG_ACTIVITY_NO_HISTORY
     }
-    context.startActivity(intent)
+    val chooser = Intent.createChooser(intent, "Abrir PDF com...")
+    context.startActivity(chooser)
 }
 
 @Preview(showBackground = true)
