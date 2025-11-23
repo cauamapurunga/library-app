@@ -52,9 +52,10 @@ import com.example.uniforlibrary.viewmodel.BookViewModel
 class AcervoAdm_Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val bookId = intent.getStringExtra("BOOK_ID")
         setContent {
             UniforLibraryTheme {
-                AcervoAdmScreen()
+                AcervoAdmScreen(bookId = bookId)
             }
         }
     }
@@ -62,7 +63,7 @@ class AcervoAdm_Activity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AcervoAdmScreen() {
+fun AcervoAdmScreen(bookId: String? = null) {
     val context = LocalContext.current
     val viewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -75,6 +76,23 @@ fun AcervoAdmScreen() {
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Todas") }
     var selectedAvailability by remember { mutableStateOf("Todas") }
+    var bookIdProcessed by remember { mutableStateOf(false) }
+
+    // Se bookId foi fornecido, buscar o livro e abrir na tela de edição
+    LaunchedEffect(bookId, uiState) {
+        if (bookId != null && !bookIdProcessed && uiState is BookUiState.Success) {
+            val books = (uiState as BookUiState.Success).books
+            val book = books.find { it.id == bookId }
+            if (book != null) {
+                bookToModify = book
+                currentScreen = "edit"
+                bookIdProcessed = true
+                android.util.Log.d("AcervoAdm", "Livro encontrado e abrindo edição: ${book.title}")
+            } else {
+                android.util.Log.d("AcervoAdm", "Livro com ID $bookId não encontrado na lista de ${books.size} livros")
+            }
+        }
+    }
 
     // Mostrar toast quando houver resultado de operação
     LaunchedEffect(operationResult) {

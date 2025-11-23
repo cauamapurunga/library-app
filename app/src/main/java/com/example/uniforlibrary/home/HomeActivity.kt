@@ -29,6 +29,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +67,9 @@ fun HomeScreen() {
     val context = LocalContext.current
     val viewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
+    val searchResults by viewModel.searchResults.collectAsState()
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearching by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -129,68 +133,92 @@ fun HomeScreen() {
             Spacer(modifier = Modifier.height(16.dp))
 
             // Search Bar Section
-            SearchBarSection()
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Quick Access Section
-            Text(
-                text = "Acesso rápido",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+            SearchBarSection(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { query ->
+                    searchQuery = query
+                    isSearching = query.isNotBlank()
+                    viewModel.searchBooks(query)
+                },
+                onClearSearch = {
+                    searchQuery = ""
+                    isSearching = false
+                    viewModel.searchBooks("")
+                }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            QuickAccessGrid(
-                onAcervoClick = { context.startActivity(Intent(context, AcervoActivity::class.java)) },
-                onEmprestimosClick = { context.startActivity(Intent(context, EmprestimosActivity::class.java)) },
-                onReservationsClick = { context.startActivity(Intent(context, MyReservationsActivity::class.java)) },
-                onProduzirClick = { context.startActivity(Intent(context, ProduzirActivity::class.java)) },
-                onExposicoesClick = { context.startActivity(Intent(context, ExposicoesActivity::class.java)) }
-            )
+            // Search Results Section (shown when searching)
+            if (isSearching) {
+                SearchResultsSection(
+                    searchQuery = searchQuery,
+                    searchResults = searchResults,
+                    context = context
+                )
+            } else {
+                // Normal Home Content (shown when not searching)
+                // Quick Access Section
+                Text(
+                    text = "Acesso rápido",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            // Highlights Section
-            Text(
-                text = "Destaques",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
+                QuickAccessGrid(
+                    onAcervoClick = { context.startActivity(Intent(context, AcervoActivity::class.java)) },
+                    onEmprestimosClick = { context.startActivity(Intent(context, EmprestimosActivity::class.java)) },
+                    onReservationsClick = { context.startActivity(Intent(context, MyReservationsActivity::class.java)) },
+                    onProduzirClick = { context.startActivity(Intent(context, ProduzirActivity::class.java)) },
+                    onExposicoesClick = { context.startActivity(Intent(context, ExposicoesActivity::class.java)) }
+                )
 
-            Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            when (uiState) {
-                is BookUiState.Loading -> {
-                    Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                // Highlights Section
+                Text(
+                    text = "Destaques",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                when (uiState) {
+                    is BookUiState.Loading -> {
+                        Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                    is BookUiState.Success -> {
+                        val books = (uiState as BookUiState.Success).books
+                        HighlightsSection(books = books, context = context)
+                    }
+                    is BookUiState.Error -> {
+                        Text(
+                            text = "Erro ao carregar livros em destaque",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 14.sp
+                        )
                     }
                 }
-                is BookUiState.Success -> {
-                    val books = (uiState as BookUiState.Success).books
-                    HighlightsSection(books = books, context = context)
-                }
-                is BookUiState.Error -> {
-                    Text(
-                        text = "Erro ao carregar livros em destaque",
-                        color = MaterialTheme.colorScheme.error,
-                        fontSize = 14.sp
-                    )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
+            }
         }
     }
 }
 
 @Composable
-fun SearchBarSection() {
-    var searchQuery by remember { mutableStateOf("") }
-
+fun SearchBarSection(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onClearSearch: () -> Unit
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -218,10 +246,10 @@ fun SearchBarSection() {
             Spacer(modifier = Modifier.height(16.dp))
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = onSearchQueryChange,
                 placeholder = {
                     Text(
-                        "Pesquisar...",
+                        "Pesquisar livros por título, autor ou gênero...",
                         fontSize = 14.sp,
                         color = Color.Gray
                     )
@@ -233,6 +261,17 @@ fun SearchBarSection() {
                         tint = MaterialTheme.colorScheme.primary
                     )
                 },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = onClearSearch) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Limpar pesquisa",
+                                tint = Color.Gray
+                            )
+                        }
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
@@ -243,6 +282,160 @@ fun SearchBarSection() {
                     cursorColor = MaterialTheme.colorScheme.primary
                 ),
                 singleLine = true
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchResultsSection(
+    searchQuery: String,
+    searchResults: List<Book>,
+    context: Context
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Resultados da pesquisa",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "${searchResults.size} livro(s)",
+                fontSize = 14.sp,
+                color = Color.Gray
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Pesquisando por: \"$searchQuery\"",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (searchResults.isEmpty()) {
+            // Empty state
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        Icons.Default.SearchOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Nenhum livro encontrado",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Tente pesquisar com outras palavras-chave",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Results list - Simple book names only
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    searchResults.forEach { book ->
+                        SearchResultItem(book = book, context = context)
+                        if (book != searchResults.last()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                color = Color.LightGray.copy(alpha = 0.3f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SearchResultItem(book: Book, context: Context) {
+    Surface(
+        onClick = {
+            val intent = Intent(context, BookDetailActivity::class.java)
+            intent.putExtra("BOOK_ID", book.id)
+            context.startActivity(intent)
+        },
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.MenuBook,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = book.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = "Ver detalhes",
+                modifier = Modifier.size(20.dp),
+                tint = Color.Gray
             )
         }
     }
@@ -332,7 +525,7 @@ fun HighlightsSection(books: List<Book>, context: Context) {
 
         val popularBooks = try {
             books.sortedByDescending { it.rating }.take(5)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             books.take(5)
         }
 
@@ -359,7 +552,7 @@ fun HighlightsSection(books: List<Book>, context: Context) {
 
         val newBooks = try {
             books.sortedByDescending { it.createdAt?.seconds ?: 0 }.take(5)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             books.take(5)
         }
 
@@ -386,7 +579,7 @@ fun HighlightsSection(books: List<Book>, context: Context) {
 
         val availableBooks = try {
             books.filter { it.isAvailable() }.take(5)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             emptyList()
         }
 
@@ -427,37 +620,7 @@ fun BookHighlightChip(book: Book, context: Context) {
     )
 }
 
-@Composable
-fun HighlightRow(items: List<String>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(items) { item ->
-            HighlightChip(text = item)
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun HighlightChip(text: String) {
-    AssistChip(
-        onClick = { /* TODO: Abrir detalhes */ },
-        label = {
-            Text(
-                text = text,
-                fontSize = 12.sp,
-                maxLines = 1
-            )
-        },
-        shape = RoundedCornerShape(20.dp),
-        colors = AssistChipDefaults.assistChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = MaterialTheme.colorScheme.onSurface
-        ),
-        border = BorderStroke(1.dp, Color.LightGray)
-    )
-}
 
 
 // Função para navegar para a tela de Perfil

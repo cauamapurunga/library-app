@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -327,102 +326,171 @@ fun AdminReservationCard(
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // Book Cover Image
-            Box(
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
                 modifier = Modifier
-                    .width(70.dp)
-                    .height(100.dp)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                if (reservation.bookCoverUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(reservation.bookCoverUrl)
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = "Capa do livro ${reservation.bookTitle}",
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    // Fallback para quando não há imagem
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.MenuBook,
-                                contentDescription = null,
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
+                // Book Cover Image
+                Box(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(120.dp)
+                ) {
+                    if (reservation.bookCoverUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(reservation.bookCoverUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Capa do livro ${reservation.bookTitle}",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxSize(),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.MenuBook,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(36.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Informações da Reserva
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    reservation.bookTitle,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = Color.Black
-                )
-                Text(
-                    reservation.bookAuthor,
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                // Info do Aluno
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.PersonOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+                // Informações da Reserva
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    // Título do Livro
                     Text(
-                        "${reservation.userName} - Mat: ${reservation.userMatricula}",
+                        reservation.bookTitle,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.Black,
+                        lineHeight = 18.sp
+                    )
+
+                    // Autor
+                    Text(
+                        reservation.bookAuthor,
+                        fontSize = 12.sp,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    // Informações do Aluno
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.PersonOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            reservation.userName,
+                            fontSize = 11.sp,
+                            color = Color.DarkGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+
+                    // Matrícula
+                    Text(
+                        "Matrícula: ${reservation.userMatricula}",
                         fontSize = 11.sp,
                         color = Color.Gray
                     )
+
+                    // Data de Solicitação
+                    Text(
+                        "Solicitado em: $requestDate",
+                        fontSize = 10.sp,
+                        color = Color.Gray
+                    )
+
+                    // Status
+                    StatusTag(reservation.status)
                 }
+            }
 
-                // Data da Reserva
-                Text(
-                    "Solicitado em: $requestDate",
-                    fontSize = 10.sp,
-                    color = Color.Gray
-                )
-
-                // Status da Reserva
-                StatusTag(reservation.status)
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Botões de Ação do ADM
-                AdminActionButtons(
-                    reservation = reservation,
-                    viewModel = viewModel,
-                    expirationDate = expirationDate,
-                    openConfirmationDialog = openConfirmationDialog
-                )
+            // Área de Ações (separada para melhor organização)
+            if (reservation.status != "Retirado" && reservation.status != "Rejeitada") {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                ) {
+                    AdminActionButtons(
+                        reservation = reservation,
+                        viewModel = viewModel,
+                        expirationDate = expirationDate,
+                        openConfirmationDialog = openConfirmationDialog
+                    )
+                }
+            } else {
+                // Para status finalizados, mostrar informações extras
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (reservation.status == "Retirado") {
+                            Text(
+                                "✓ Retirado em: ${reservation.withdrawalDate?.let { 
+                                    SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it.toDate()) 
+                                } ?: "N/A"}",
+                                fontSize = 11.sp,
+                                color = Color.DarkGray,
+                                fontWeight = FontWeight.Medium
+                            )
+                        } else if (reservation.status == "Rejeitada") {
+                            Column {
+                                Text(
+                                    "✗ Rejeitada",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFD32F2F),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (reservation.rejectionReason != null) {
+                                    Text(
+                                        "Motivo: ${reservation.rejectionReason}",
+                                        fontSize = 10.sp,
+                                        color = Color.Gray,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -449,13 +517,15 @@ fun AdminActionButtons(
     expirationDate: String?,
     openConfirmationDialog: (String, String, () -> Unit) -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.End,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        when (reservation.status) {
-            "Pendente" -> {
+    when (reservation.status) {
+        "Pendente" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 OutlinedButton(
                     onClick = {
                         openConfirmationDialog(
@@ -468,10 +538,10 @@ fun AdminActionButtons(
                             )
                         }
                     },
-                    modifier = Modifier.height(32.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    Text("Rejeitar", fontSize = 11.sp)
+                    Text("Rejeitar", fontSize = 12.sp)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Button(
@@ -483,52 +553,69 @@ fun AdminActionButtons(
                             viewModel.approveReservation(reservationId = reservation.id)
                         }
                     },
-                    modifier = Modifier.height(32.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp)
                 ) {
-                    Text("Aprovar", fontSize = 11.sp)
+                    Text("Aprovar", fontSize = 12.sp)
                 }
             }
-            "Aprovada" -> {
-                Column(horizontalAlignment = Alignment.End) {
-                    if (expirationDate != null) {
+        }
+        "Aprovada" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Expira em: $expirationDate",
-                            fontSize = 10.sp,
-                            color = Color.Gray
+                            "Aguardando aluno confirmar retirada",
+                            fontSize = 11.sp,
+                            color = Color(0xFFFFA000),
+                            fontWeight = FontWeight.Medium
                         )
-                    }
-                    Text(
-                        "⏳ Aguardando aluno confirmar retirada",
-                        fontSize = 10.sp,
-                        color = Color(0xFFFFA000),
-                        fontWeight = FontWeight.Medium
-                    )
-                    Button(
-                        onClick = { /* Desabilitado */ },
-                        enabled = false,
-                        modifier = Modifier.height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Text("Marcar como retirada", fontSize = 11.sp, textAlign = TextAlign.Center)
+                        if (expirationDate != null) {
+                            Text(
+                                "Expira em: $expirationDate",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
                 }
             }
-            "Aguardando Retirada" -> {
-                Column(horizontalAlignment = Alignment.End) {
-                    if (expirationDate != null) {
+        }
+        "Aguardando Retirada" -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Expira em: $expirationDate",
-                            fontSize = 10.sp,
-                            color = Color.Gray
+                            "Aluno confirmou! Pronto para entregar",
+                            fontSize = 11.sp,
+                            color = Color(0xFF388E3C),
+                            fontWeight = FontWeight.Bold
                         )
+                        if (expirationDate != null) {
+                            Text(
+                                "Expira em: $expirationDate",
+                                fontSize = 10.sp,
+                                color = Color.Gray
+                            )
+                        }
                     }
-                    Text(
-                        "✅ Aluno confirmou! Pronto para entregar",
-                        fontSize = 10.sp,
-                        color = Color(0xFF388E3C),
-                        fontWeight = FontWeight.Bold
-                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = {
                             openConfirmationDialog(
@@ -538,75 +625,40 @@ fun AdminActionButtons(
                                 viewModel.markAsWithdrawn(reservationId = reservation.id)
                             }
                         },
-                        modifier = Modifier.height(32.dp),
+                        modifier = Modifier.height(36.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp)
                     ) {
-                        Text("Marcar como retirada", fontSize = 11.sp, textAlign = TextAlign.Center)
+                        Text("Confirmar Retirada", fontSize = 11.sp)
                     }
                 }
             }
-            "Expirada" -> {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "Prazo expirado em ${expirationDate ?: "N/A"}",
-                        fontSize = 10.sp,
-                        color = Color.Red
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    TextButton(
-                        onClick = {
-                            openConfirmationDialog(
-                                "Contactar Aluno",
-                                "Deseja notificar ${reservation.userName} sobre o prazo expirado?"
-                            ) {
-                                // TODO: Implementar lógica de notificação
-                            }
+        }
+        "Expirada" -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Prazo expirado em ${expirationDate ?: "N/A"}",
+                    fontSize = 11.sp,
+                    color = Color(0xFFD32F2F),
+                    fontWeight = FontWeight.Medium
+                )
+                TextButton(
+                    onClick = {
+                        openConfirmationDialog(
+                            "Contactar Aluno",
+                            "Deseja notificar ${reservation.userName} sobre o prazo expirado?"
+                        ) {
+                            // TODO: Implementar lógica de notificação
                         }
-                    ) {
-                        Text("Contactar aluno", fontSize = 11.sp)
-                    }
-                }
-            }
-            "Retirado" -> {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        "Retirado em: ${reservation.withdrawalDate?.let { 
-                            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it.toDate()) 
-                        } ?: "N/A"}",
-                        fontSize = 10.sp,
-                        color = Color.Gray
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Button(
-                        onClick = { /* Apenas visualização */ },
-                        enabled = false,
-                        modifier = Modifier.height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Text("Retirado", fontSize = 11.sp)
-                    }
-                }
-            }
-            "Rejeitada" -> {
-                Column(horizontalAlignment = Alignment.End) {
-                    if (reservation.rejectionReason != null) {
-                        Text(
-                            "Motivo: ${reservation.rejectionReason}",
-                            fontSize = 10.sp,
-                            color = Color.Gray,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
-                    OutlinedButton(
-                        onClick = { /* Apenas visualização */ },
-                        enabled = false,
-                        modifier = Modifier.height(32.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Text("Rejeitada", fontSize = 11.sp)
-                    }
+                    },
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Text("Contactar", fontSize = 11.sp)
                 }
             }
         }
