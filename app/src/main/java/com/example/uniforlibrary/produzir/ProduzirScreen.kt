@@ -47,6 +47,7 @@ import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ProducaoViewModel
 import com.example.uniforlibrary.viewmodel.ProducaoUiState
+import kotlin.text.ifEmpty
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +59,7 @@ fun ProduzirScreen(onBack: () -> Unit) {
     val uiState by viewModel.uiState.collectAsState()
 
     var titulo by remember { mutableStateOf("") }
-    var categoria by remember { mutableStateOf("Cordel") }
+    var categoriaSelecionada by remember { mutableStateOf("") }
     var fotoUri by remember { mutableStateOf<Uri?>(null) }
     var arquivoUri by remember { mutableStateOf<Uri?>(null) }
     var fotoNome by remember { mutableStateOf<String?>(null) }
@@ -270,7 +271,9 @@ fun ProduzirScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    CategoriaDropdown(selected = categoria, onSelect = { categoria = it })
+                    CategoriaDropdown(selected = categoriaSelecionada, onSelect = { categoria ->
+                        categoriaSelecionada = categoria
+                    })
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -376,7 +379,7 @@ fun ProduzirScreen(onBack: () -> Unit) {
                                 viewModel.submitProducao(
                                     context = context,
                                     titulo = titulo,
-                                    categoria = categoria,
+                                    categoria = categoriaSelecionada,
                                     fotoUri = fotoUri,
                                     arquivoUri = arquivoUri
                                 )
@@ -444,52 +447,42 @@ fun UploadBox(titulo: String, descricao: String, onSelect: () -> Unit, isSelecte
 
 @Composable
 fun CategoriaDropdown(selected: String, onSelect: (String) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
+    var showCategoryDropdown by remember { mutableStateOf(false) }
     val categorias = listOf("Cordel", "Artigo", "Conto", "Produção")
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text("Categoria:", fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(8.dp))
 
-        Box {
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedTextField(
-                value = selected,
+                value = selected.ifEmpty { "Selecione uma categoria" },
                 onValueChange = {},
+                label = { Text("Categoria") },
+                trailingIcon = {
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.clickable { showCategoryDropdown = !showCategoryDropdown }
+                    )
+                },
+                modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = true },
-                label = { Text("Selecione a categoria") },
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
             DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                expanded = showCategoryDropdown,
+                onDismissRequest = { showCategoryDropdown = false }
             ) {
-                categorias.forEach { categoria ->
+                categorias.forEach { category ->
                     DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    text = categoria,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                if (categoria == "Escrever por SCAMPER") {
-                                    Text(
-                                        text = "Substitua, Combine, Adapte, Modifique, Procure outros usos, Elimine, Rearranje",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        },
+                        text = { Text(category) },
                         onClick = {
-                            onSelect(categoria)
-                            expanded = false
+                            onSelect(category)
+                            showCategoryDropdown = false
                         }
                     )
                 }
