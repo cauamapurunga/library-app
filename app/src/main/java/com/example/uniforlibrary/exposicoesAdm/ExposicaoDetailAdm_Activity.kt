@@ -35,6 +35,7 @@ import com.example.uniforlibrary.components.AdminBottomNav
 import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.model.Producao
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
+import com.example.uniforlibrary.produzir.PdfReaderActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.ExposicaoDetailAdmViewModel
@@ -52,10 +53,18 @@ class ExposicaoDetailAdm_Activity : ComponentActivity() {
             UniforLibraryTheme {
                 ExposicaoDetailAdmScreen(
                     producaoId = producaoId,
-                    onBack = { finish() }
+                    onBack = {
+                        // Sinalizar que houve mudanças e a lista precisa ser atualizada
+                        setResult(RESULT_OK)
+                        finish()
+                    }
                 )
             }
         }
+    }
+
+    companion object {
+        const val REQUEST_CODE = 1001
     }
 }
 
@@ -142,9 +151,13 @@ fun ExposicaoDetailAdmScreen(producaoId: String, onBack: () -> Unit) {
                     producao = state.producao,
                     onApprove = { showApproveDialog = true },
                     onReject = { showRejectDialog = true },
-                    onOpenFile = { url ->
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        context.startActivity(intent)
+                    onOpenFile = { url, title ->
+                        PdfReaderActivity.start(
+                            context,
+                            url,
+                            title,
+                            showRating = false // Admin não precisa avaliar
+                        )
                     },
                     modifier = Modifier.padding(innerPadding)
                 )
@@ -277,7 +290,7 @@ fun ProducaoDetailContent(
     producao: Producao,
     onApprove: () -> Unit,
     onReject: () -> Unit,
-    onOpenFile: (String) -> Unit,
+    onOpenFile: (String, String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -387,7 +400,7 @@ fun ProducaoDetailContent(
         // Botão Ver Arquivo
         if (producao.arquivoUrl.isNotEmpty()) {
             Button(
-                onClick = { onOpenFile(producao.arquivoUrl) },
+                onClick = { onOpenFile(producao.arquivoUrl, producao.titulo) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),

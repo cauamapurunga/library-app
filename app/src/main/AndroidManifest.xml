@@ -5,6 +5,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!-- Permissão para verificar apps que podem abrir PDFs -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="application/pdf" />
+        </intent>
+    </queries>
+
     <application
         android:name=".LibraryApplication"
         android:allowBackup="true"
@@ -78,6 +86,12 @@
             android:exported="false"
             android:label="Submeter Produção"
             android:theme="@style/Theme.UniforLibrary" />
+
+        <activity
+            android:name=".produzir.PdfReaderActivity"
+            android:exported="false"
+            android:label="Leitor de PDF"
+            android:theme="@style/Theme.UniforLibrary.AppCompat" />
 
         <activity
             android:name=".acervo.BookDetailActivity"

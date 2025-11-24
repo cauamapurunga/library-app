@@ -34,6 +34,7 @@ import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
+import com.example.uniforlibrary.produzir.PdfReaderActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
@@ -314,7 +315,14 @@ fun ProducaoDetailScreen(
                     // Botão de leitura (se houver PDF)
                     if (producao.arquivoUrl.isNotEmpty()) {
                         Button(
-                            onClick = { navigateToReading(context, producao.arquivoUrl) },
+                            onClick = {
+                                PdfReaderActivity.start(
+                                    context,
+                                    producao.arquivoUrl,
+                                    producao.titulo,
+                                    showRating = true
+                                )
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
@@ -410,10 +418,33 @@ private fun navigateToProfile(context: Context) {
 }
 
 private fun navigateToReading(context: Context, pdfUrl: String) {
-    val intent = Intent(context, ReadingActivity::class.java).apply {
-        putExtra("PDF_URL", pdfUrl)
+    try {
+        // Cria um intent genérico para visualizar o conteúdo
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(android.net.Uri.parse(pdfUrl), "application/pdf")
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        // Verifica se há aplicativos disponíveis
+        val packageManager = context.packageManager
+        val activities = packageManager.queryIntentActivities(intent, 0)
+
+        if (activities.isNotEmpty()) {
+            // Cria o chooser para forçar a seleção de aplicativo
+            val chooserIntent = Intent.createChooser(intent, "Escolha um aplicativo para abrir o PDF")
+            context.startActivity(chooserIntent)
+        } else {
+            // Se não houver apps, tenta abrir no navegador
+            val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(pdfUrl))
+            context.startActivity(browserIntent)
+        }
+    } catch (e: Exception) {
+        android.widget.Toast.makeText(
+            context,
+            "Erro ao abrir PDF. Instale um leitor de PDF.",
+            android.widget.Toast.LENGTH_LONG
+        ).show()
     }
-    context.startActivity(intent)
 }
 
 @Preview(showBackground = true)

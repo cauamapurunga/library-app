@@ -8,7 +8,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,19 +17,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -308,7 +308,7 @@ fun ProduzirScreen(onBack: () -> Unit) {
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                         } else {
-                            Icon(Icons.Default.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.onPrimary)
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.onPrimary)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text("Enviar para avaliação", color = MaterialTheme.colorScheme.onPrimary)
                         }
@@ -456,36 +456,49 @@ fun CategoriaDropdown(selected: String, onSelect: (String) -> Unit) {
                 value = selected,
                 onValueChange = {},
                 readOnly = true,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { expanded = true },
+                modifier = Modifier.fillMaxWidth(),
                 label = { Text("Selecione a categoria") },
+                trailingIcon = {
+                    IconButton(onClick = { expanded = !expanded }) {
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ArrowDropUp else Icons.Default.ArrowDropDown,
+                            contentDescription = "Expandir menu"
+                        )
+                    }
+                },
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                )
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    disabledBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    disabledLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    disabledTextColor = MaterialTheme.colorScheme.onSurface
+                ),
+                interactionSource = remember { MutableInteractionSource() }
+                    .also { interactionSource ->
+                        LaunchedEffect(interactionSource) {
+                            interactionSource.interactions.collect { interaction ->
+                                if (interaction is PressInteraction.Release) {
+                                    expanded = !expanded
+                                }
+                            }
+                        }
+                    }
             )
+
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
-                modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surface)
             ) {
                 categorias.forEach { categoria ->
                     DropdownMenuItem(
                         text = {
-                            Column {
-                                Text(
-                                    text = categoria,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                if (categoria == "Escrever por SCAMPER") {
-                                    Text(
-                                        text = "Substitua, Combine, Adapte, Modifique, Procure outros usos, Elimine, Rearranje",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
+                            Text(
+                                text = categoria,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         },
                         onClick = {
                             onSelect(categoria)
@@ -522,10 +535,3 @@ private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun ProduzirScreenPreview() {
-    UniforLibraryTheme {
-        ProduzirScreen(onBack = {})
-    }
-}
