@@ -3,6 +3,7 @@ package com.example.uniforlibrary.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uniforlibrary.model.Producao
+import com.example.uniforlibrary.repository.NotificationRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -18,6 +19,7 @@ sealed class ExposicaoDetailUiState {
 
 class ExposicaoDetailAdmViewModel : ViewModel() {
     private val firestore = FirebaseFirestore.getInstance()
+    private val notificationRepo = NotificationRepository()
 
     private val _uiState = MutableStateFlow<ExposicaoDetailUiState>(ExposicaoDetailUiState.Loading)
     val uiState: StateFlow<ExposicaoDetailUiState> = _uiState.asStateFlow()
@@ -50,6 +52,14 @@ class ExposicaoDetailAdmViewModel : ViewModel() {
     fun aprovarProducao(producaoId: String, motivo: String = "") {
         viewModelScope.launch {
             try {
+                // Buscar dados da produção antes de aprovar
+                val doc = firestore.collection("producoes")
+                    .document(producaoId)
+                    .get()
+                    .await()
+
+                val producao = doc.toObject(Producao::class.java)?.copy(id = doc.id)
+
                 firestore.collection("producoes")
                     .document(producaoId)
                     .update(
@@ -60,6 +70,20 @@ class ExposicaoDetailAdmViewModel : ViewModel() {
                             "updated_at" to com.google.firebase.Timestamp.now()
                         )
                     ).await()
+
+                // NOTIFICAÇÃO: Notificar usuário sobre aprovação
+                producao?.let {
+                    try {
+                        notificationRepo.notifyProductionApproved(
+                            userId = it.usuarioId,
+                            productionTitle = it.titulo,
+                            productionId = producaoId
+                        )
+                        android.util.Log.d("ExposicaoDetailVM", "Notificação de aprovação enviada")
+                    } catch (e: Exception) {
+                        android.util.Log.e("ExposicaoDetailVM", "Erro ao enviar notificação", e)
+                    }
+                }
 
                 _actionResult.value = "Produção aprovada com sucesso!"
                 // Recarregar produção para atualizar status na tela
@@ -80,6 +104,14 @@ class ExposicaoDetailAdmViewModel : ViewModel() {
                     return@launch
                 }
 
+                // Buscar dados da produção antes de reprovar
+                val doc = firestore.collection("producoes")
+                    .document(producaoId)
+                    .get()
+                    .await()
+
+                val producao = doc.toObject(Producao::class.java)?.copy(id = doc.id)
+
                 firestore.collection("producoes")
                     .document(producaoId)
                     .update(
@@ -90,6 +122,21 @@ class ExposicaoDetailAdmViewModel : ViewModel() {
                             "updated_at" to com.google.firebase.Timestamp.now()
                         )
                     ).await()
+
+                // NOTIFICAÇÃO: Notificar usuário sobre reprovação
+                producao?.let {
+                    try {
+                        notificationRepo.notifyProductionRejected(
+                            userId = it.usuarioId,
+                            productionTitle = it.titulo,
+                            productionId = producaoId,
+                            reason = motivo
+                        )
+                        android.util.Log.d("ExposicaoDetailVM", "Notificação de reprovação enviada")
+                    } catch (e: Exception) {
+                        android.util.Log.e("ExposicaoDetailVM", "Erro ao enviar notificação", e)
+                    }
+                }
 
                 _actionResult.value = "Produção reprovada."
                 // Recarregar produção para atualizar status na tela

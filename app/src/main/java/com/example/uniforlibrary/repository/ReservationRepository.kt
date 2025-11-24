@@ -22,6 +22,7 @@ class ReservationRepository {
     private val reservationsCollection = db.collection("reservations")
     private val booksCollection = db.collection("books")
     private val usersCollection = db.collection("usuarios")
+    private val notificationRepo = NotificationRepository() // Adicionar repositório de notificações
 
     companion object {
         private const val TAG = "ReservationRepository"
@@ -86,6 +87,27 @@ class ReservationRepository {
 
             docRef.set(reservation.toMap()).await()
             Log.d(TAG, "Reserva criada com sucesso: ${docRef.id}")
+
+            // NOTIFICAÇÃO: Notificar todos os admins sobre nova reserva
+            try {
+                val adminsSnapshot = usersCollection
+                    .whereEqualTo("tipo", "ADMIN")
+                    .get()
+                    .await()
+
+                adminsSnapshot.documents.forEach { adminDoc ->
+                    notificationRepo.notifyAdminNewReservation(
+                        adminId = adminDoc.id,
+                        userName = reservation.userName,
+                        userMatricula = reservation.userMatricula,
+                        bookTitle = reservation.bookTitle,
+                        reservationId = docRef.id
+                    )
+                }
+                Log.d(TAG, "Notificações enviadas para ${adminsSnapshot.size()} admins")
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao criar notificação de nova reserva", e)
+            }
 
             Result.success(docRef.id)
         } catch (e: Exception) {
@@ -273,6 +295,20 @@ class ReservationRepository {
                 )
             }.await()
 
+            // NOTIFICAÇÃO: Notificar usuário sobre aprovação
+            try {
+                val userId = reservationDoc.getString("user_id") ?: ""
+                val bookTitle = reservationDoc.getString("book_title") ?: ""
+
+                notificationRepo.notifyReservationApproved(
+                    userId = userId,
+                    bookTitle = bookTitle,
+                    reservationId = reservationId
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao criar notificação de aprovação", e)
+            }
+
             Log.d(TAG, "Reserva aprovada com sucesso: $reservationId")
             Result.success(Unit)
         } catch (e: Exception) {
@@ -310,6 +346,21 @@ class ReservationRepository {
             )
 
             reservationsCollection.document(reservationId).update(updates).await()
+
+            // NOTIFICAÇÃO: Notificar usuário sobre rejeição
+            try {
+                val userId = reservationDoc.getString("user_id") ?: ""
+                val bookTitle = reservationDoc.getString("book_title") ?: ""
+
+                notificationRepo.notifyReservationRejected(
+                    userId = userId,
+                    bookTitle = bookTitle,
+                    reservationId = reservationId,
+                    reason = reason ?: ""
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "Erro ao criar notificação de rejeição", e)
+            }
 
             Log.d(TAG, "Reserva rejeitada com sucesso: $reservationId")
             Result.success(Unit)
@@ -626,4 +677,3 @@ class ReservationRepository {
         }
     }
 }
-

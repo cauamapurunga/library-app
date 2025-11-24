@@ -130,13 +130,13 @@ fun ChatScreen() {
 fun MessageBubble(message: ChatMessage) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isUser) Arrangement.Start else Arrangement.End
+        horizontalArrangement = if (message.isUser) Arrangement.End else Arrangement.Start
     ) {
         Card(
             shape = RoundedCornerShape(
                 topStart = 16.dp, topEnd = 16.dp,
-                bottomStart = if (message.isUser) 0.dp else 16.dp,
-                bottomEnd = if (message.isUser) 16.dp else 0.dp
+                bottomStart = if (message.isUser) 16.dp else 0.dp,
+                bottomEnd = if (message.isUser) 0.dp else 16.dp
             ),
             colors = CardDefaults.cardColors(
                 containerColor = if (message.isUser) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.LightGray.copy(alpha = 0.3f)

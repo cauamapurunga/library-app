@@ -29,12 +29,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
-import com.example.uniforlibrary.acervo.BookDetailActivity
 import com.example.uniforlibrary.model.Book
+import com.example.uniforlibrary.components.BadgeBox
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.BookViewModel
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
 import com.example.uniforlibrary.components.AdminBottomNav
@@ -61,6 +62,8 @@ class HomeAdm_Activity : ComponentActivity() {
 @Composable
 fun HomeAdmScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: com.example.uniforlibrary.viewmodel.HomeAdmViewModel = viewModel()
     val bookViewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
@@ -80,7 +83,9 @@ fun HomeAdmScreen() {
                 },
                 actions = {
                     IconButton(onClick = { navigateToNotificacoes(context) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)

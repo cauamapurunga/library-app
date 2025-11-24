@@ -3,6 +3,7 @@ package com.example.uniforlibrary.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.uniforlibrary.model.Producao
+import com.example.uniforlibrary.repository.NotificationRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ sealed class ProducaoAdminUiState {
 
 class ProducaoAdminViewModel : ViewModel() {
     private val firestore = FirebaseFirestore.getInstance()
+    private val notificationRepo = NotificationRepository()
 
     private val _uiState = MutableStateFlow<ProducaoAdminUiState>(ProducaoAdminUiState.Loading)
     val uiState: StateFlow<ProducaoAdminUiState> = _uiState.asStateFlow()
@@ -100,6 +102,14 @@ class ProducaoAdminViewModel : ViewModel() {
     fun aprovarProducao(producaoId: String, motivo: String = "") {
         viewModelScope.launch {
             try {
+                // Buscar dados da produção antes de aprovar
+                val doc = firestore.collection("producoes")
+                    .document(producaoId)
+                    .get()
+                    .await()
+
+                val producao = doc.toObject(Producao::class.java)?.copy(id = doc.id)
+
                 firestore.collection("producoes")
                     .document(producaoId)
                     .update(
@@ -109,6 +119,20 @@ class ProducaoAdminViewModel : ViewModel() {
                             "motivoAvaliacao" to motivo
                         )
                     ).await()
+
+                // NOTIFICAÇÃO: Notificar usuário sobre aprovação
+                producao?.let {
+                    try {
+                        notificationRepo.notifyProductionApproved(
+                            userId = it.usuarioId,
+                            productionTitle = it.titulo,
+                            productionId = producaoId
+                        )
+                        android.util.Log.d("ProducaoAdminVM", "Notificação de aprovação enviada")
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProducaoAdminVM", "Erro ao enviar notificação", e)
+                    }
+                }
 
                 _actionResult.value = "Produção aprovada com sucesso!"
                 loadProducoes() // Recarregar lista
@@ -127,6 +151,14 @@ class ProducaoAdminViewModel : ViewModel() {
                     return@launch
                 }
 
+                // Buscar dados da produção antes de reprovar
+                val doc = firestore.collection("producoes")
+                    .document(producaoId)
+                    .get()
+                    .await()
+
+                val producao = doc.toObject(Producao::class.java)?.copy(id = doc.id)
+
                 firestore.collection("producoes")
                     .document(producaoId)
                     .update(
@@ -136,6 +168,21 @@ class ProducaoAdminViewModel : ViewModel() {
                             "motivoAvaliacao" to motivo
                         )
                     ).await()
+
+                // NOTIFICAÇÃO: Notificar usuário sobre reprovação
+                producao?.let {
+                    try {
+                        notificationRepo.notifyProductionRejected(
+                            userId = it.usuarioId,
+                            productionTitle = it.titulo,
+                            productionId = producaoId,
+                            reason = motivo
+                        )
+                        android.util.Log.d("ProducaoAdminVM", "Notificação de reprovação enviada")
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProducaoAdminVM", "Erro ao enviar notificação", e)
+                    }
+                }
 
                 _actionResult.value = "Produção reprovada."
                 loadProducoes() // Recarregar lista

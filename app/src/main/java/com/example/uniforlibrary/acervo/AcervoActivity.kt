@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
@@ -44,6 +45,7 @@ import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.BookUiState
 import com.example.uniforlibrary.viewmodel.BookViewModel
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 
 class AcervoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -165,6 +167,8 @@ private fun FilterSection(
 @Composable
 fun AcervoScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -205,11 +209,13 @@ fun AcervoScreen() {
                 },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notificações",
-                            tint = Color.White
-                        )
+                        BadgeBox(count = unreadCount) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Notificações",
+                                tint = Color.White
+                            )
+                        }
                     }
                     IconButton(onClick = { context.startActivity(Intent(context, EditProfileActivity::class.java)) }) {
                         Icon(

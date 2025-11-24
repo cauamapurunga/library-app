@@ -42,12 +42,14 @@ import coil.compose.rememberAsyncImagePainter
 import coil.request.ImageRequest
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.model.Book
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.BookUiState
 import com.example.uniforlibrary.viewmodel.BookViewModel
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 
 class AcervoAdm_Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +67,8 @@ class AcervoAdm_Activity : ComponentActivity() {
 @Composable
 fun AcervoAdmScreen(bookId: String? = null) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val operationResult by viewModel.operationResult.collectAsState()
@@ -137,7 +141,9 @@ fun AcervoAdmScreen(bookId: String? = null) {
                 },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)

@@ -37,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
 import com.example.uniforlibrary.acervo.BookDetailActivity
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
@@ -49,6 +50,7 @@ import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.BookUiState
 import com.example.uniforlibrary.viewmodel.BookViewModel
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 
 class HomeActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,6 +67,8 @@ class HomeActivity : ComponentActivity() {
 @Composable
 fun HomeScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: BookViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
@@ -95,11 +99,13 @@ fun HomeScreen() {
                 },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = "Notificações",
-                            tint = Color.White
-                        )
+                        BadgeBox(count = unreadCount) {
+                            Icon(
+                                Icons.Default.Notifications,
+                                contentDescription = "Notificações",
+                                tint = Color.White
+                            )
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(

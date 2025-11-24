@@ -31,10 +31,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.model.Producao
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ProducaoAdminUiState
 import com.example.uniforlibrary.viewmodel.ProducaoAdminViewModel
 import java.text.SimpleDateFormat
@@ -59,6 +61,8 @@ class ExposicoesAdm_Activity : ComponentActivity() {
 @Composable
 fun ExposicoesAdmScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: ProducaoAdminViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val actionResult by viewModel.actionResult.collectAsState()
@@ -131,7 +135,9 @@ fun ExposicoesAdmScreen() {
                     IconButton(onClick = {
                         context.startActivity(Intent(context, NotificacoesActivity::class.java))
                     }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
