@@ -34,6 +34,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.home.HomeActivity
@@ -46,6 +47,7 @@ import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.ExposicoesUiState
 import com.example.uniforlibrary.viewmodel.ExposicoesViewModel
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -64,6 +66,8 @@ class ExposicoesActivity : ComponentActivity() {
 @Composable
 fun ExposicoesScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: ExposicoesViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
@@ -110,7 +114,9 @@ fun ExposicoesScreen() {
                     IconButton(onClick = {
                         context.startActivity(Intent(context, NotificacoesActivity::class.java))
                     }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
@@ -429,4 +435,3 @@ fun ExposicoesScreenPreview() {
         ExposicoesScreen()
     }
 }
-

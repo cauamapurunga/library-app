@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.model.Loan
@@ -38,6 +39,7 @@ import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.viewmodel.LoanUiState
 import com.example.uniforlibrary.viewmodel.LoanViewModel
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -57,6 +59,8 @@ class EmprestimosActivity : ComponentActivity() {
 @Composable
 fun EmprestimosScreen(viewModel: LoanViewModel = viewModel()) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -135,7 +139,9 @@ fun EmprestimosScreen(viewModel: LoanViewModel = viewModel()) {
                     IconButton(onClick = {
                         context.startActivity(Intent(context, NotificacoesActivity::class.java))
                     }) {
-                        Icon(Icons.Default.Notifications, "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, "Perfil", tint = Color.White)
@@ -528,4 +534,3 @@ fun EmprestimosScreenPreview() {
         EmprestimosScreen()
     }
 }
-

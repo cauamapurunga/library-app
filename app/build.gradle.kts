@@ -88,6 +88,9 @@ dependencies {
     //Gemini IA
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
+    // WorkManager para tarefas em background
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
