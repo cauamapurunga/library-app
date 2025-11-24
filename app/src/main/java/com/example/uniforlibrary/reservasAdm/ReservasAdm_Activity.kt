@@ -74,10 +74,12 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.components.AdminBottomNav
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.model.Reservation
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ReservationUiState
 import com.example.uniforlibrary.viewmodel.ReservationViewModel
 import kotlinx.coroutines.launch
@@ -99,6 +101,8 @@ class ReservasADM_activity : ComponentActivity() {
 @Composable
 fun ReservasADMScreen(viewModel: ReservationViewModel = viewModel()) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -166,31 +170,24 @@ fun ReservasADMScreen(viewModel: ReservationViewModel = viewModel()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Image(
                             painter = painterResource(id = R.drawable.logo_branca),
-                            contentDescription = "Logo",
+                            contentDescription = "Logo Unifor",
                             modifier = Modifier.size(50.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Reservas",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
+                        Text("Gerenciar Reservas", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        context.startActivity(Intent(context, NotificacoesActivity::class.java))
-                    }) {
-                        Icon(Icons.Default.Notifications, "Notificações", tint = Color.White)
+                    IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
-                        Icon(Icons.Default.Person, "Perfil", tint = Color.White)
+                        Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary
-                )
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.primary)
             )
         },
         bottomBar = {

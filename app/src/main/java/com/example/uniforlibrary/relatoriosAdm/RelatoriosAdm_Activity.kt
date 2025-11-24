@@ -8,49 +8,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -65,12 +31,15 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervoAdm.AcervoAdm_Activity
+import com.example.uniforlibrary.components.AdminBottomNav
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.exposicoesAdm.ExposicoesAdm_Activity
 import com.example.uniforlibrary.homeAdm.HomeAdm_Activity
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservasAdm.ReservasADM_activity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ReportUiState
 import com.example.uniforlibrary.viewmodel.ReportViewModel
 import java.text.SimpleDateFormat
@@ -93,6 +62,8 @@ class RelatoriosAdm_Activity : ComponentActivity() {
 @Composable
 fun RelatoriosAdmScreen() {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: ReportViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val startDate by viewModel.startDate.collectAsState()
@@ -114,7 +85,9 @@ fun RelatoriosAdmScreen() {
                 },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { context.startActivity(Intent(context, EditProfileActivity::class.java)) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
@@ -210,7 +183,7 @@ fun DateFilters(
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 enabled = false,
-                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                colors = TextFieldDefaults.colors(
                     disabledTextColor = MaterialTheme.colorScheme.onSurface,
                     disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -252,7 +225,7 @@ fun DateFilters(
                 modifier = Modifier.fillMaxWidth(),
                 readOnly = true,
                 enabled = false,
-                colors = androidx.compose.material3.TextFieldDefaults.colors(
+                colors = TextFieldDefaults.colors(
                     disabledTextColor = MaterialTheme.colorScheme.onSurface,
                     disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -385,7 +358,7 @@ fun PopularBooks(popularBooks: List<com.example.uniforlibrary.repository.Popular
                 Column(modifier = Modifier.padding(16.dp)) {
                     popularBooks.forEachIndexed { index, book ->
                         if (index > 0) {
-                            androidx.compose.material3.HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
                         }
                         PopularBookItem(
                             rank = index + 1,
@@ -438,44 +411,6 @@ fun PopularBookItem(rank: Int, title: String, author: String = "", reservationCo
         }
     }
 }
-
-
-@Composable
-fun AdminBottomNav(context: Context, selectedItemIndex: Int) {
-    val navigationItems = listOf(
-        AdminBottomNavItem("Home", Icons.Default.Home, 0) { context.startActivity(Intent(context, HomeAdm_Activity::class.java)) },
-        AdminBottomNavItem("Acervo", Icons.AutoMirrored.Filled.MenuBook, 1) { context.startActivity(Intent(context, AcervoAdm_Activity::class.java)) },
-        AdminBottomNavItem("Exposições", Icons.Default.PhotoLibrary, 2) { context.startActivity(Intent(context, ExposicoesAdm_Activity::class.java)) },
-        AdminBottomNavItem("Reservas", Icons.Default.Bookmark, 3) { context.startActivity(Intent(context, ReservasADM_activity::class.java)) },
-        AdminBottomNavItem("Relatórios", Icons.Default.Assessment, 4) { /* Already here */ }
-    )
-
-    Surface(tonalElevation = 0.dp, shadowElevation = 16.dp, color = Color.White) {
-        NavigationBar(
-            containerColor = Color.White,
-            tonalElevation = 0.dp,
-            modifier = Modifier.height(80.dp).padding(vertical = 8.dp, horizontal = 4.dp)
-        ) {
-            navigationItems.forEach { item ->
-                NavigationBarItem(
-                    selected = selectedItemIndex == item.index,
-                    onClick = item.onClick,
-                    label = { Text(item.label, fontSize = 9.sp, maxLines = 2, textAlign = TextAlign.Center, lineHeight = 11.sp, fontWeight = if (selectedItemIndex == item.index) FontWeight.Bold else FontWeight.Medium) },
-                    icon = { Icon(imageVector = item.icon, contentDescription = item.label, modifier = Modifier.size(24.dp)) },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = Color(0xFF666666),
-                        unselectedTextColor = Color(0xFF666666),
-                        indicatorColor = Color.Transparent
-                    )
-                )
-            }
-        }
-    }
-}
-
-data class AdminBottomNavItem(val label: String, val icon: ImageVector, val index: Int, val onClick: () -> Unit)
 
 @Preview(showBackground = true)
 @Composable

@@ -34,14 +34,17 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.acervo.AcervoActivity
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.exposicoes.ExposicoesActivity
 import com.example.uniforlibrary.home.HomeActivity
+import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.example.uniforlibrary.model.BottomNavItem
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ProducaoViewModel
 import com.example.uniforlibrary.viewmodel.ProducaoUiState
 
@@ -49,6 +52,8 @@ import com.example.uniforlibrary.viewmodel.ProducaoUiState
 @Composable
 fun ProduzirScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val viewModel: ProducaoViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
 
@@ -145,8 +150,10 @@ fun ProduzirScreen(onBack: () -> Unit) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: notificações */ }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                    IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)

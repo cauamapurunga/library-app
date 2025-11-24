@@ -22,4 +22,3 @@ class LibraryApplication : Application() {
         firestore.firestoreSettings = settings
     }
 }
-

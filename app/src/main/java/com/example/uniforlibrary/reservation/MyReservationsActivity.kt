@@ -32,12 +32,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.components.Chatbot
 import com.example.uniforlibrary.components.UserBottomNav
 import com.example.uniforlibrary.model.Reservation
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.UserReservationViewModel
 import com.example.uniforlibrary.viewmodel.UserReservationUiState
 import kotlinx.coroutines.launch
@@ -59,6 +61,8 @@ class MyReservationsActivity : ComponentActivity() {
 @Composable
 fun MyReservationsScreen(viewModel: UserReservationViewModel = viewModel()) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -100,7 +104,9 @@ fun MyReservationsScreen(viewModel: UserReservationViewModel = viewModel()) {
                 },
                 actions = {
                     IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
-                        Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, contentDescription = "Notificações", tint = Color.White)
+                        }
                     }
                     IconButton(onClick = { navigateToProfile(context) }) {
                         Icon(Icons.Default.Person, contentDescription = "Perfil", tint = Color.White)
@@ -540,4 +546,3 @@ fun ReservationCard(
 private fun navigateToProfile(context: Context) {
     context.startActivity(Intent(context, EditProfileActivity::class.java))
 }
-

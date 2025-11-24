@@ -13,6 +13,8 @@ class ProducaoRepository {
     private val db = FirebaseFirestore.getInstance()
     private val producaoCollection = db.collection("producoes")
     private val auth = FirebaseAuth.getInstance()
+    private val notificationRepo = NotificationRepository() // Adicionar repositório de notificações
+    private val usersCollection = db.collection("usuarios")
 
     // Criar nova produção
     suspend fun addProducao(producao: Producao): Result<String> {
@@ -24,6 +26,27 @@ class ProducaoRepository {
                 updatedAt = Timestamp.now()
             )
             docRef.set(producaoWithId.toMap()).await()
+
+            // NOTIFICAÇÃO: Notificar todos os admins sobre nova produção submetida
+            try {
+                val adminsSnapshot = usersCollection
+                    .whereEqualTo("tipo", "ADMIN")
+                    .get()
+                    .await()
+
+                adminsSnapshot.documents.forEach { adminDoc ->
+                    notificationRepo.notifyAdminNewProduction(
+                        adminId = adminDoc.id,
+                        userName = producao.usuarioNome,
+                        productionTitle = producao.titulo,
+                        productionId = docRef.id
+                    )
+                }
+                android.util.Log.d("ProducaoRepository", "Notificações criadas para ${adminsSnapshot.size()} admins sobre nova produção")
+            } catch (e: Exception) {
+                android.util.Log.e("ProducaoRepository", "Erro ao criar notificações de nova produção", e)
+            }
+
             Result.success(docRef.id)
         } catch (e: Exception) {
             Result.failure(e)
@@ -113,4 +136,3 @@ class ProducaoRepository {
         }
     }
 }
-

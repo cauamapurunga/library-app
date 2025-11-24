@@ -28,7 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.components.BadgeBox
 import com.example.uniforlibrary.model.Reservation
+import com.example.uniforlibrary.notificacoes.NotificacoesActivity
+import com.example.uniforlibrary.viewmodel.NotificationViewModel
 import com.example.uniforlibrary.viewmodel.ReservationUiState
 import com.example.uniforlibrary.viewmodel.ReservationViewModel
 import com.google.firebase.auth.FirebaseAuth
@@ -54,6 +57,8 @@ class UserReservationsActivity : ComponentActivity() {
 @Composable
 fun UserReservationsScreen(viewModel: ReservationViewModel = viewModel()) {
     val context = LocalContext.current
+    val notificationViewModel: NotificationViewModel = viewModel()
+    val unreadCount by notificationViewModel.unreadCount.collectAsState()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
@@ -141,20 +146,14 @@ fun UserReservationsScreen(viewModel: ReservationViewModel = viewModel()) {
                             modifier = Modifier.size(50.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            "Minhas Reservas",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
+                        Text("Minhas Reservas", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* TODO: Navigate to notifications */ }) {
-                        Icon(Icons.Default.Notifications, "Notificações", tint = Color.White)
-                    }
-                    IconButton(onClick = { /* TODO: Navigate to profile */ }) {
-                        Icon(Icons.Default.Person, "Perfil", tint = Color.White)
+                    IconButton(onClick = { context.startActivity(Intent(context, NotificacoesActivity::class.java)) }) {
+                        BadgeBox(count = unreadCount) {
+                            Icon(Icons.Default.Notifications, "Notificações", tint = Color.White)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
