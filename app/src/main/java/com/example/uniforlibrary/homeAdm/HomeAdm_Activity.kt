@@ -3,8 +3,11 @@ package com.example.uniforlibrary.homeAdm
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -41,6 +44,7 @@ import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.relatoriosAdm.RelatoriosAdm_Activity
 import com.example.uniforlibrary.reservasAdm.ReservasADM_activity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.utils.CloudinaryUrlFixer
 
 class HomeAdm_Activity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

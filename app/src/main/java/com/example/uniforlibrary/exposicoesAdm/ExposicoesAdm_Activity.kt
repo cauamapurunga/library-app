@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,6 +49,10 @@ class ExposicoesAdm_Activity : ComponentActivity() {
             }
         }
     }
+
+    companion object {
+        const val REQUEST_DETAIL = 1001
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -69,6 +72,25 @@ fun ExposicoesAdmScreen() {
     val categories = listOf("Todos", "Cordel", "Artigo", "Produção", "Conto")
     val availabilityOptions = listOf("Todos", "Pendente", "Aprovado", "Reprovado")
 
+    // CORREÇÃO: Adicionar key de recomposição para forçar reload
+    var refreshKey by remember { mutableStateOf(0) }
+
+    // CORREÇÃO: Recarregar dados quando a tela volta ao primeiro plano (ON_RESUME)
+    DisposableEffect(Unit) {
+        val owner = context as? androidx.lifecycle.LifecycleOwner
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                // Incrementar key para forçar reload completo
+                refreshKey++
+                android.util.Log.d("ExposicoesAdmScreen", "ON_RESUME: Recarregando dados...")
+            }
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose {
+            owner?.lifecycle?.removeObserver(observer)
+        }
+    }
+
     // Exibir resultado de ações
     LaunchedEffect(actionResult) {
         actionResult?.let { message ->
@@ -77,10 +99,12 @@ fun ExposicoesAdmScreen() {
         }
     }
 
-    // Aplicar filtros quando mudarem
-    LaunchedEffect(selectedCategory, selectedAvailability, searchText) {
+    // Aplicar filtros quando mudarem OU quando refreshKey mudar
+    LaunchedEffect(selectedCategory, selectedAvailability, searchText, refreshKey) {
         val categoriaFiltro = if (selectedCategory == "Todos" || selectedCategory.isEmpty()) "" else selectedCategory
         val statusFiltro = if (selectedAvailability == "Todos" || selectedAvailability.isEmpty()) "" else selectedAvailability
+
+        android.util.Log.d("ExposicoesAdmScreen", "Carregando produções com filtros: cat=$categoriaFiltro, status=$statusFiltro, search=$searchText, refreshKey=$refreshKey")
 
         viewModel.loadProducoes(
             categoria = categoriaFiltro,
@@ -517,5 +541,11 @@ private fun navigateToProfile(context: Context) {
 private fun navigateToExposicaoDetailAdm(context: Context, producaoId: String) {
     val intent = Intent(context, ExposicaoDetailAdm_Activity::class.java)
     intent.putExtra("PRODUCAO_ID", producaoId)
-    context.startActivity(intent)
+    if (context is ExposicoesAdm_Activity) {
+        // Se o contexto é a Activity, usar startActivityForResult
+        context.startActivity(intent)
+    } else {
+        // Caso contrário, apenas iniciar a Activity normalmente
+        context.startActivity(intent)
+    }
 }

@@ -39,17 +39,8 @@ class ProducaoRepository {
             val uploadResult = CloudinaryService.uploadImage(context, imageUri, "producoes", producaoId)
 
             uploadResult.onSuccess { imageUrl ->
-                // Atualizar URL da foto no Firestore
-                producaoCollection.document(producaoId)
-                    .update(
-                        mapOf(
-                            "foto_url" to imageUrl,
-                            "updated_at" to Timestamp.now()
-                        )
-                    )
-                    .await()
-
-                android.util.Log.d("ProducaoRepository", "Foto atualizada com sucesso: $imageUrl")
+                android.util.Log.d("ProducaoRepository", "Foto URL recebida do Cloudinary: $imageUrl")
+                // Nota: A atualização no Firestore será feita pelo ViewModel após sucesso
             }
 
             uploadResult
@@ -68,17 +59,8 @@ class ProducaoRepository {
             val uploadResult = CloudinaryService.uploadDocument(context, fileUri, "producoes/documentos", producaoId)
 
             uploadResult.onSuccess { fileUrl ->
-                // Atualizar URL do arquivo no Firestore
-                producaoCollection.document(producaoId)
-                    .update(
-                        mapOf(
-                            "arquivo_url" to fileUrl,
-                            "updated_at" to Timestamp.now()
-                        )
-                    )
-                    .await()
-
-                android.util.Log.d("ProducaoRepository", "Arquivo atualizado com sucesso: $fileUrl")
+                android.util.Log.d("ProducaoRepository", "Arquivo URL recebida do Cloudinary: $fileUrl")
+                // Nota: A atualização no Firestore será feita pelo ViewModel após sucesso
             }
 
             uploadResult

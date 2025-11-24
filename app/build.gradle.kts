@@ -88,6 +88,14 @@ dependencies {
     //Gemini IA
     implementation("com.google.ai.client.generativeai:generativeai:0.9.0")
 
+    // OkHttp para download de PDFs
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // Material Components and CoordinatorLayout for PDF Reader
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

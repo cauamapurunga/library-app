@@ -40,6 +40,7 @@ class ProducaoViewModel : ViewModel() {
         arquivoUri: Uri?
     ) {
         viewModelScope.launch {
+            var tempProducaoId: String? = null
             try {
                 _uiState.value = ProducaoUiState.Loading
 
@@ -54,51 +55,76 @@ class ProducaoViewModel : ViewModel() {
                     return@launch
                 }
 
+                // CORREÇÃO: Validar categoria para evitar inconsistências
+                val categoriaFinal = categoria.trim().ifEmpty { "Cordel" }
+
                 // Obter dados do usuário
                 val userId = auth.currentUser?.uid ?: throw Exception("Usuário não autenticado")
                 val userDoc = firestore.collection("usuarios").document(userId).get().await()
                 val userName = userDoc.getString("nome") ?: "Usuário"
 
-                // Criar produção no Firestore
+                // CORREÇÃO: Primeiro fazer upload do PDF ANTES de criar a produção
+                // Gerar ID temporário para o upload
+                val tempId = firestore.collection("producoes").document().id
+                tempProducaoId = tempId
+
+                android.util.Log.d("ProducaoViewModel", "Iniciando upload do PDF antes de criar produção...")
+
+                // Upload do arquivo (obrigatório) - PRIMEIRO!
+                val arquivoResult = repository.uploadArquivoProducao(context, tempId, arquivoUri)
+
+                arquivoResult.onFailure { e ->
+                    // Se o PDF falhar, não criar a produção
+                    android.util.Log.e("ProducaoViewModel", "Falha no upload do PDF, abortando criação da produção", e)
+                    _uiState.value = ProducaoUiState.Error(
+                        "Erro ao fazer upload do arquivo: ${e.message}\n\nA produção não foi criada."
+                    )
+                    return@launch
+                }
+
+                // Se chegou aqui, o PDF foi enviado com sucesso
+                val arquivoUrl = arquivoResult.getOrNull() ?: ""
+
+                android.util.Log.d("ProducaoViewModel", "PDF enviado com sucesso! URL: $arquivoUrl")
+
+                // Upload da foto (opcional)
+                var fotoUrl = ""
+                if (fotoUri != null) {
+                    val fotoResult = repository.uploadFotoProducao(context, tempId, fotoUri)
+                    fotoResult.onSuccess { url ->
+                        fotoUrl = url
+                    }.onFailure { e ->
+                        android.util.Log.e("ProducaoViewModel", "Erro ao fazer upload da foto (continuando mesmo assim)", e)
+                    }
+                }
+
+                // AGORA SIM criar produção no Firestore com as URLs já prontas
                 val producao = Producao(
+                    id = tempId,
                     titulo = titulo,
-                    categoria = categoria,
+                    categoria = categoriaFinal,
                     usuarioId = userId,
                     usuarioNome = userName,
-                    status = "pendente"
+                    status = "pendente",
+                    fotoUrl = fotoUrl,
+                    arquivoUrl = arquivoUrl
                 )
 
                 val result = repository.addProducao(producao)
 
-                result.onSuccess { producaoId ->
-                    _producaoId.value = producaoId
-
-                    // Upload da foto (opcional)
-                    if (fotoUri != null) {
-                        val fotoResult = repository.uploadFotoProducao(context, producaoId, fotoUri)
-                        fotoResult.onFailure { e ->
-                            android.util.Log.e("ProducaoViewModel", "Erro ao fazer upload da foto", e)
-                        }
-                    }
-
-                    // Upload do arquivo (obrigatório)
-                    val arquivoResult = repository.uploadArquivoProducao(context, producaoId, arquivoUri)
-
-                    arquivoResult.onSuccess {
-                        _uiState.value = ProducaoUiState.Success(
-                            "Produção enviada com sucesso! Aguarde a avaliação do comitê."
-                        )
-                    }.onFailure { e ->
-                        _uiState.value = ProducaoUiState.Error(
-                            "Erro ao fazer upload do arquivo: ${e.message}"
-                        )
-                    }
-
+                result.onSuccess {
+                    _producaoId.value = tempId
+                    _uiState.value = ProducaoUiState.Success(
+                        "Produção enviada com sucesso! Aguarde a avaliação do comitê."
+                    )
                 }.onFailure { e ->
-                    _uiState.value = ProducaoUiState.Error("Erro ao criar produção: ${e.message}")
+                    // Se falhar ao criar no Firestore mas o PDF já foi enviado
+                    android.util.Log.e("ProducaoViewModel", "Erro ao salvar no Firestore (mas PDF já foi enviado)", e)
+                    _uiState.value = ProducaoUiState.Error("Erro ao salvar produção: ${e.message}")
                 }
 
             } catch (e: Exception) {
+                android.util.Log.e("ProducaoViewModel", "Erro inesperado", e)
                 _uiState.value = ProducaoUiState.Error("Erro inesperado: ${e.message}")
             }
         }

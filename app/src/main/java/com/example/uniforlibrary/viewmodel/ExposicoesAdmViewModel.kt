@@ -70,6 +70,11 @@ class ProducaoAdminViewModel : ViewModel() {
                     }
                 }
 
+                // CORREÇÃO: Filtrar produções sem PDF (não devem aparecer no admin)
+                producoes = producoes.filter { producao ->
+                    producao.arquivoUrl.isNotBlank()
+                }
+
                 // Ordenar por data no cliente (evita índice composto no Firebase)
                 producoes = producoes.sortedByDescending { it.createdAt }
 
@@ -80,6 +85,8 @@ class ProducaoAdminViewModel : ViewModel() {
                                 producao.usuarioNome.contains(searchQuery, ignoreCase = true)
                     }
                 }
+
+                android.util.Log.d("ProducaoAdminVM", "Total de produções após filtros: ${producoes.size}")
 
                 _uiState.value = ProducaoAdminUiState.Success(producoes)
 

@@ -88,6 +88,12 @@
             android:theme="@style/Theme.UniforLibrary" />
 
         <activity
+            android:name=".produzir.PdfReaderActivity"
+            android:exported="false"
+            android:label="Leitor de PDF"
+            android:theme="@style/Theme.UniforLibrary.AppCompat" />
+
+        <activity
             android:name=".acervo.BookDetailActivity"
             android:exported="false"
             android:label="Detalhes da Obra"

@@ -33,6 +33,7 @@ import com.example.uniforlibrary.emprestimos.EmprestimosActivity
 import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.model.BottomNavItem
 import com.example.uniforlibrary.notificacoes.NotificacoesActivity
+import com.example.uniforlibrary.produzir.PdfReaderActivity
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.reservation.MyReservationsActivity
@@ -308,7 +309,14 @@ fun ProducaoDetailScreen(
                     // Botão de leitura (se houver PDF)
                     if (producao.arquivoUrl.isNotEmpty()) {
                         Button(
-                            onClick = { navigateToReading(context, producao.arquivoUrl) },
+                            onClick = {
+                                PdfReaderActivity.start(
+                                    context,
+                                    producao.arquivoUrl,
+                                    producao.titulo,
+                                    showRating = true
+                                )
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(50.dp),
