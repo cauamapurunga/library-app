@@ -26,6 +26,16 @@ data class Producao(
 
     val status: String = "pendente", // pendente, aprovado, rejeitado
 
+    val rating: Float = 0f, // Média de avaliações dos leitores
+
+    @get:PropertyName("data_avaliacao")
+    @set:PropertyName("data_avaliacao")
+    var dataAvaliacao: Timestamp? = null,
+
+    @get:PropertyName("motivo_avaliacao")
+    @set:PropertyName("motivo_avaliacao")
+    var motivoAvaliacao: String? = null,
+
     @get:PropertyName("created_at")
     @set:PropertyName("created_at")
     var createdAt: Timestamp? = null,
@@ -43,6 +53,8 @@ data class Producao(
         usuarioId = "",
         usuarioNome = "",
         status = "pendente",
+        dataAvaliacao = null,
+        motivoAvaliacao = null,
         createdAt = null,
         updatedAt = null
     )
@@ -62,6 +74,14 @@ data class Producao(
 
         if (id.isNotEmpty()) {
             map["id"] = id
+        }
+
+        dataAvaliacao?.let {
+            map["data_avaliacao"] = it
+        }
+
+        motivoAvaliacao?.let {
+            map["motivo_avaliacao"] = it
         }
 
         return map

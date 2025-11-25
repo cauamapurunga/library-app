@@ -17,7 +17,7 @@ data class Book(
     var categoryId: Int = 0,
 
     val description: String = "",
-    val rating: Int = 0,
+    val rating: Float = 0f,
 
     @get:PropertyName("is_digital")
     @set:PropertyName("is_digital")
@@ -57,7 +57,7 @@ data class Book(
         publicationYear = 0,
         categoryId = 0,
         description = "",
-        rating = 0,
+        rating = 0f,
         isDigital = false,
         totalCopies = 0,
         availableCopies = 0,

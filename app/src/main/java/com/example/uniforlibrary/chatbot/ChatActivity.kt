@@ -21,9 +21,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.uniforlibrary.BuildConfig
 import com.google.ai.client.generativeai.GenerativeModel
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
+import com.example.uniforlibrary.viewmodel.BookUiState
+import com.example.uniforlibrary.viewmodel.BookViewModel
+import com.example.uniforlibrary.viewmodel.ExposicoesUiState
+import com.example.uniforlibrary.viewmodel.ExposicoesViewModel
 import kotlinx.coroutines.launch
 
 data class ChatMessage(val text: String, val isUser: Boolean)
@@ -43,20 +48,34 @@ class ChatActivity : ComponentActivity() {
 @Composable
 fun ChatScreen() {
     val context = LocalContext.current
+    val bookViewModel: BookViewModel = viewModel()
+    val producoesViewModel: ExposicoesViewModel = viewModel()
+    val bookUiState by bookViewModel.uiState.collectAsState()
+    val producaoUiState by producoesViewModel.uiState.collectAsState()
+
     val messages = remember {
         mutableStateListOf(ChatMessage("Olá! Como posso ajudar você hoje?", isUser = false))
     }
     var inputText by remember { mutableStateOf("") }
 
-    //criando a conexão com gemini, criando um escopo para adaptar o generateContent
-    var generativeModel:GenerativeModel
-    generativeModel = remember { GenerativeModel(
-        "gemini-2.0-flash",
-        BuildConfig.GEMINI_API_KEY,
-    ) }
-    generativeModel.startChat()
+    val generativeModel = remember {
+        GenerativeModel(
+            "gemini-2.0-flash",
+            BuildConfig.GEMINI_API_KEY,
+        )
+    }
+
+    // Manter a mesma instância do chat durante toda a conversa
+    val chat = remember { generativeModel.startChat() }
 
     val scope = rememberCoroutineScope()
+
+    // Carregar livros e produçoes ao iniciar
+    LaunchedEffect(Unit) {
+        bookViewModel.loadBooks()
+        producoesViewModel.loadApprovedProducoes()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -72,7 +91,9 @@ fun ChatScreen() {
         bottomBar = {
             Surface(shadowElevation = 8.dp) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     OutlinedTextField(
@@ -85,37 +106,73 @@ fun ChatScreen() {
                     Spacer(modifier = Modifier.width(8.dp))
                     IconButton(onClick = {
                         if (inputText.isNotBlank()) {
-                            var userMessage = inputText
+                            val userMessage = inputText
                             messages.add(ChatMessage(userMessage, isUser = true))
 
-
-                            //gerando resposta da IA com o input do aluno
                             scope.launch {
-                                try{
-                                    var aiPrePrompt = "Responda como um bibliotecário de uma universidade, ajudando alunos com duvida, limite a mensagem em até 600 caracteres"
-                                    var aiResponse = generativeModel.generateContent(aiPrePrompt+ inputText)
+                                try {
+                                    // Preparar contexto dos livros
+                                    val booksContext = when (val state = bookUiState) {
+                                        is BookUiState.Success -> {
+                                            state.books.joinToString("\n") { book ->
+                                                "- ${book.title} por ${book.author} (${book.category}) - ${if (book.availableCopies > 0) "Disponível" else "Indisponível"}"
+                                            }
+                                        }
+                                        else -> "Nenhum livro disponível no momento."
+                                    }
+
+                                    val producoesContext = when (val state = producaoUiState){
+                                        is ExposicoesUiState.Success -> {
+                                            state.producoes.joinToString("\n") { producao ->
+                                                "- ${producao.titulo} por ${producao.usuarioNome} - ${if (producao.status == "aprovado") "Disponível" else "Indisponível"}"
+                                            }
+                                        }
+                                        else -> "Nenhuma produção disponível no momento."
+                                    }
+
+                                    // Enviar mensagem no chat contínuo
+                                    val prompt = """
+                                        Você é um bibliotecário de uma universidade brasileira. 
+                                        Ajude alunos com suas dúvidas sobre livros e a biblioteca.
+                                        Seja amigável e prestativo.
+                                        Limite suas respostas a no máximo 1200 caracteres.
+                                        
+                                        LIVROS NA BIBLIOTECA:
+                                        $booksContext
+                                        
+                                        PRODUÇÕES NA BIBLIOTECA:
+                                        $producoesContext
+                                        
+                                        Pergunta do aluno: $userMessage
+                                    """.trimIndent()
+
+                                    val aiResponse = chat.sendMessage(prompt)
 
                                     aiResponse.text?.let {
                                         messages.add(ChatMessage(it, isUser = false))
                                     }
-                                    inputText=""
-                                } catch (e: Exception){
-                                    messages.add(ChatMessage("Desculpe, ocorreu um erro.", isUser = false))
+                                    inputText = ""
+                                } catch (e: Exception) {
+                                    messages.add(ChatMessage("Desculpe, ocorreu um erro: ${e.message}", isUser = false))
                                 }
                             }
-
                         }
-
-                    }
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar", tint = MaterialTheme.colorScheme.primary)
+                    }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Enviar",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
         }
     ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).padding(horizontal = 16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
