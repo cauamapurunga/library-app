@@ -66,9 +66,9 @@ class BookRepository {
                                 },
                                 description = data["description"] as? String ?: "",
                                 rating = when (val rat = data["rating"]) {
-                                    is Number -> rat.toInt()
-                                    is String -> rat.toIntOrNull() ?: 0
-                                    else -> 0
+                                    is Number -> rat.toFloat()
+                                    is String -> rat.toFloatOrNull() ?: 0f
+                                    else -> 0f
                                 },
                                 isDigital = data["is_digital"] as? Boolean ?: false,
                                 totalCopies = when (val total = data["total_copies"]) {
@@ -144,9 +144,9 @@ class BookRepository {
                         },
                         description = data["description"] as? String ?: "",
                         rating = when (val rat = data["rating"]) {
-                            is Number -> rat.toInt()
-                            is String -> rat.toIntOrNull() ?: 0
-                            else -> 0
+                            is Number -> rat.toFloat()
+                            is String -> rat.toFloatOrNull() ?: 0f
+                            else -> 0f
                         },
                         isDigital = data["is_digital"] as? Boolean ?: false,
                         totalCopies = when (val total = data["total_copies"]) {
@@ -268,9 +268,9 @@ class BookRepository {
                             },
                             description = data["description"] as? String ?: "",
                             rating = when (val rat = data["rating"]) {
-                                is Number -> rat.toInt()
-                                is String -> rat.toIntOrNull() ?: 0
-                                else -> 0
+                                is Number -> rat.toFloat()
+                                is String -> rat.toFloatOrNull() ?: 0f
+                                else -> 0f
                             },
                             isDigital = data["is_digital"] as? Boolean ?: false,
                             totalCopies = when (val total = data["total_copies"]) {

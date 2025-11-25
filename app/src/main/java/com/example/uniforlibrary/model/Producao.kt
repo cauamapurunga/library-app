@@ -26,6 +26,8 @@ data class Producao(
 
     val status: String = "pendente", // pendente, aprovado, rejeitado
 
+    val rating: Float = 0f, // Média de avaliações dos leitores
+
     @get:PropertyName("data_avaliacao")
     @set:PropertyName("data_avaliacao")
     var dataAvaliacao: Timestamp? = null,

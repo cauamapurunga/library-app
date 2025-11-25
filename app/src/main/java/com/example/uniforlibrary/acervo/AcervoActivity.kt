@@ -47,6 +47,8 @@ import com.example.uniforlibrary.viewmodel.BookUiState
 import com.example.uniforlibrary.viewmodel.BookViewModel
 import com.example.uniforlibrary.viewmodel.NotificationViewModel
 
+import java.util.Locale
+
 class AcervoActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -389,12 +391,12 @@ fun BookCard(book: Book, onReserveClick: () -> Unit) {
                         Icons.Default.Star,
                         contentDescription = "Rating",
                         modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = Color(0xFFFFC107) // Estrela dourada
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        book.rating.toString(),
-                        color = MaterialTheme.colorScheme.primary,
+                        text = if (book.rating > 0f) String.format(Locale.getDefault(), "%.1f", book.rating) else "0.0",
+                        color = Color.DarkGray,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 14.sp
                     )

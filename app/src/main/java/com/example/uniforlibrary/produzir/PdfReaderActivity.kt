@@ -15,7 +15,10 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import com.example.uniforlibrary.R
+import com.example.uniforlibrary.repository.RatingRepository
+import com.example.uniforlibrary.repository.ReadingProgressRepository
 import com.example.uniforlibrary.service.CloudinaryService
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -33,12 +36,14 @@ class PdfReaderActivity : AppCompatActivity() {
         const val EXTRA_PDF_URL = "pdf_url"
         const val EXTRA_TITLE = "title"
         const val EXTRA_SHOW_RATING = "show_rating"
+        const val EXTRA_PRODUCAO_ID = "producao_id"
 
-        fun start(context: Context, pdfUrl: String, title: String, showRating: Boolean = false) {
+        fun start(context: Context, pdfUrl: String, title: String, showRating: Boolean = false, producaoId: String? = null) {
             val intent = Intent(context, PdfReaderActivity::class.java).apply {
                 putExtra(EXTRA_PDF_URL, pdfUrl)
                 putExtra(EXTRA_TITLE, title)
                 putExtra(EXTRA_SHOW_RATING, showRating)
+                putExtra(EXTRA_PRODUCAO_ID, producaoId)
             }
             context.startActivity(intent)
         }
@@ -69,6 +74,7 @@ class PdfReaderActivity : AppCompatActivity() {
     private var pdfUrl: String = ""
     private var bookTitle: String = ""
     private var showRating: Boolean = false
+    private var producaoId: String? = null
     private var isBookmarked = false
 
     private var pdfRenderer: PdfRenderer? = null
@@ -87,8 +93,9 @@ class PdfReaderActivity : AppCompatActivity() {
         pdfUrl = intent.getStringExtra(EXTRA_PDF_URL) ?: ""
         bookTitle = intent.getStringExtra(EXTRA_TITLE) ?: "Leitura"
         showRating = intent.getBooleanExtra(EXTRA_SHOW_RATING, false)
+        producaoId = intent.getStringExtra(EXTRA_PRODUCAO_ID)
 
-        Log.d(TAG, "onCreate - pdfUrl=$pdfUrl, title=$bookTitle, showRating=$showRating")
+        Log.d(TAG, "onCreate - pdfUrl=$pdfUrl, title=$bookTitle, showRating=$showRating, producaoId=$producaoId")
 
 
         if (pdfUrl.isBlank()) {
@@ -260,9 +267,50 @@ class PdfReaderActivity : AppCompatActivity() {
         sendRatingButton.setOnClickListener {
             val rating = ratingBar.rating
             if (rating > 0) {
-                Toast.makeText(this, "Avaliação de $rating estrelas enviada!", Toast.LENGTH_SHORT).show()
-                ratingLayout.isVisible = false
-                // TODO: Enviar avaliação para o servidor
+                // Salvar avaliação no Firebase
+                if (producaoId != null) {
+                    val auth = FirebaseAuth.getInstance()
+                    val currentUser = auth.currentUser
+
+                    if (currentUser != null) {
+                        val ratingRepository = RatingRepository()
+
+                        CoroutineScope(Dispatchers.IO).launch {
+                            val result = ratingRepository.createProducaoRating(
+                                producaoId = producaoId!!,
+                                userId = currentUser.uid,
+                                userName = currentUser.displayName ?: currentUser.email ?: "Usuário",
+                                stars = rating.toInt(),
+                                comment = ""
+                            )
+
+                            withContext(Dispatchers.Main) {
+                                result.onSuccess {
+                                    Toast.makeText(
+                                        this@PdfReaderActivity,
+                                        "Avaliação de $rating estrelas enviada com sucesso!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    ratingLayout.isVisible = false
+                                    Log.d(TAG, "✅ Avaliação salva: $rating estrelas para produção $producaoId")
+                                }.onFailure { e ->
+                                    Toast.makeText(
+                                        this@PdfReaderActivity,
+                                        "Erro ao enviar avaliação: ${e.message}",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    Log.e(TAG, "❌ Erro ao salvar avaliação", e)
+                                }
+                            }
+                        }
+                    } else {
+                        Toast.makeText(this, "Você precisa estar logado para avaliar", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(this, "Avaliação de $rating estrelas enviada!", Toast.LENGTH_SHORT).show()
+                    ratingLayout.isVisible = false
+                    Log.w(TAG, "⚠️ producaoId é null - avaliação não foi salva")
+                }
             } else {
                 Toast.makeText(this, "Por favor, selecione uma avaliação", Toast.LENGTH_SHORT).show()
             }
@@ -598,8 +646,31 @@ class PdfReaderActivity : AppCompatActivity() {
         currentPage = index
         updatePageNumber()
 
-        if (showRating && currentPage == totalPages - 1) {
-            ratingLayout.postDelayed({ ratingLayout.isVisible = true }, 2000)
+        // Marcar leitura como completa quando chegar à última página
+        if (showRating && currentPage == totalPages - 1 && producaoId != null) {
+            val auth = FirebaseAuth.getInstance()
+            val currentUser = auth.currentUser
+
+            if (currentUser != null) {
+                val readingProgressRepository = ReadingProgressRepository()
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    // Marcar leitura como completa
+                    readingProgressRepository.markAsCompleted(producaoId!!, currentUser.uid)
+
+                    withContext(Dispatchers.Main) {
+                        // Mostrar diálogo de avaliação após 2 segundos
+                        ratingLayout.postDelayed({
+                            ratingLayout.isVisible = true
+                            Toast.makeText(
+                                this@PdfReaderActivity,
+                                "Parabéns! Você completou a leitura! 🎉",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }, 2000)
+                    }
+                }
+            }
         }
     }
 

@@ -29,18 +29,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import com.example.uniforlibrary.BuildConfig
 import com.example.uniforlibrary.R
 import com.example.uniforlibrary.home.HomeActivity
 import com.example.uniforlibrary.model.Book
 import com.example.uniforlibrary.model.BottomNavItem
+import com.example.uniforlibrary.model.Rating
 import com.example.uniforlibrary.produzir.ProduzirActivity
 import com.example.uniforlibrary.profile.EditProfileActivity
 import com.example.uniforlibrary.repository.BookRepository
+import com.example.uniforlibrary.repository.RatingRepository
 import com.example.uniforlibrary.repository.ReservationRepository
 import com.example.uniforlibrary.reservation.MyReservationsActivity
 import com.example.uniforlibrary.ui.theme.UniforLibraryTheme
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class BookDetailActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -337,6 +342,62 @@ fun InfoChip(label: String, value: String, modifier: Modifier = Modifier) {
 fun DetailSection(book: Book) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val tabs = listOf("Descrição", "Avaliações")
+    val context = LocalContext.current
+    val auth = FirebaseAuth.getInstance()
+    val ratingRepository = remember { RatingRepository() }
+    val scope = rememberCoroutineScope()
+
+    var showRatingDialog by remember { mutableStateOf(false) }
+    var ratings by remember { mutableStateOf<List<Rating>>(emptyList()) }
+    var averageRating by remember { mutableStateOf(0f) }
+    var userRating by remember { mutableStateOf<Rating?>(null) }
+    var isLoadingRatings by remember { mutableStateOf(false) }
+
+    // Calcular ratingCount diretamente do tamanho da lista de ratings
+    val ratingCount = ratings.size
+
+    // Carregar avaliações quando a aba de avaliações for selecionada
+    LaunchedEffect(selectedTabIndex, book.id) {
+        if (selectedTabIndex == 1) {
+            isLoadingRatings = true
+
+            // Carregar avaliações PRIMEIRO
+            ratingRepository.getRatingsForBook(book.id).onSuccess { loadedRatings ->
+                ratings = loadedRatings
+                android.util.Log.d("BookDetailActivity", "✅ Total de avaliações carregadas: ${loadedRatings.size}")
+            }.onFailure { e ->
+                android.util.Log.e("BookDetailActivity", "❌ Erro ao carregar avaliações: ${e.message}")
+                ratings = emptyList()
+            }
+
+            // Carregar média
+            ratingRepository.getAverageRating(book.id).onSuccess { avg ->
+                averageRating = avg
+                android.util.Log.d("BookDetailActivity", "✅ Média: $avg")
+
+                // Atualizar o rating no Firebase se necessário
+                if (avg > 0f) {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("books")
+                        .document(book.id)
+                        .update("rating", avg)
+                }
+            }.onFailure { e ->
+                android.util.Log.e("BookDetailActivity", "❌ Erro ao calcular média: ${e.message}")
+                averageRating = 0f
+            }
+
+            // Carregar avaliação do usuário atual
+            auth.currentUser?.uid?.let { userId ->
+                ratingRepository.getUserRating(book.id, userId).onSuccess { rating ->
+                    userRating = rating
+                    android.util.Log.d("BookDetailActivity", "✅ Usuário já avaliou: ${rating != null}")
+                }
+            }
+
+            isLoadingRatings = false
+        }
+    }
 
     Column {
         TabRow(selectedTabIndex = selectedTabIndex, containerColor = Color.Transparent) {
@@ -356,9 +417,277 @@ fun DetailSection(book: Book) {
                 color = Color.Gray,
                 lineHeight = 20.sp
             )
-            1 -> Text("Nenhuma avaliação disponível ainda.", fontSize = 14.sp, color = Color.Gray)
+            1 -> RatingsSection(
+                book = book,
+                ratings = ratings,
+                averageRating = averageRating,
+                ratingCount = ratingCount,
+                userRating = userRating,
+                isLoading = isLoadingRatings,
+                onAddRatingClick = { showRatingDialog = true }
+            )
         }
     }
+
+    if (showRatingDialog) {
+        RatingDialog(
+            existingRating = userRating,
+            onDismiss = { showRatingDialog = false },
+            onSubmit = { rating, comment ->
+                scope.launch {
+                    val currentUser = auth.currentUser
+                    if (currentUser != null) {
+                        val result = ratingRepository.createRating(
+                            bookId = book.id,
+                            userId = currentUser.uid,
+                            userName = currentUser.displayName ?: currentUser.email ?: "Usuário",
+                            stars = rating,
+                            comment = comment
+                        )
+
+                        result.onSuccess {
+                            Toast.makeText(context, "Avaliação enviada com sucesso!", Toast.LENGTH_SHORT).show()
+                            showRatingDialog = false
+
+                            // Recarregar avaliações
+                            ratingRepository.getRatingsForBook(book.id).onSuccess { loadedRatings ->
+                                ratings = loadedRatings
+                            }
+                            ratingRepository.getAverageRating(book.id).onSuccess { avg ->
+                                averageRating = avg
+                            }
+                            ratingRepository.getUserRating(book.id, currentUser.uid).onSuccess { rating ->
+                                userRating = rating
+                            }
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Erro ao enviar avaliação: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        Toast.makeText(context, "Você precisa estar logado para avaliar", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        )
+    }
+}
+
+@Composable
+fun RatingsSection(
+    book: Book,
+    ratings: List<Rating>,
+    averageRating: Float,
+    ratingCount: Int,
+    userRating: Rating?,
+    isLoading: Boolean,
+    onAddRatingClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(32.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else {
+            // Resumo de avaliações
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = String.format(Locale.getDefault(), "%.1f", averageRating),
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    StarRatingDisplay(rating = averageRating)
+                }
+
+                Button(
+                    onClick = onAddRatingClick,
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(if (userRating != null) "Editar" else "Avaliar")
+                }
+            }
+
+            Divider()
+
+            // Lista de avaliações
+            if (ratings.isEmpty()) {
+                Text(
+                    "Boa leitura! 📚",
+                    fontSize = 16.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp)
+                )
+            } else {
+                // Título da seção de comentários
+                Text(
+                    text = "Avaliações dos usuários",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Lista de comentários dos usuários
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ratings.forEach { rating ->
+                        RatingItem(rating = rating)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RatingItem(rating: Rating) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Ícone de usuário
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = rating.userName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        // Nota numérica
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = Color(0xFFFFC107).copy(alpha = 0.2f)
+                        ) {
+                            Text(
+                                text = "${rating.stars}.0",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFF8F00),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                    StarRatingDisplay(rating = rating.stars.toFloat())
+                }
+            }
+
+            // Data da avaliação
+            rating.createdAt?.let { timestamp ->
+                val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                Text(
+                    text = dateFormat.format(timestamp.toDate()),
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun StarRatingDisplay(rating: Float, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        repeat(5) { index ->
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = if (index < rating.toInt()) Color(0xFFFFC107) else Color.LightGray,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun RatingDialog(
+    existingRating: Rating?,
+    onDismiss: () -> Unit,
+    onSubmit: (rating: Int, comment: String) -> Unit
+) {
+    var selectedRating by remember { mutableIntStateOf(existingRating?.stars ?: 0) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (existingRating != null) "Editar Avaliação" else "Avaliar este livro",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Toque nas estrelas para avaliar")
+
+                // Estrelas interativas
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    repeat(5) { index ->
+                        IconButton(onClick = { selectedRating = index + 1 }) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Estrela ${index + 1}",
+                                tint = if (index < selectedRating) Color(0xFFFFC107) else Color.LightGray,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSubmit(selectedRating, "") },
+                enabled = selectedRating > 0
+            ) {
+                Text("Enviar")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancelar")
+            }
+        }
+    )
 }
 
 @Composable
