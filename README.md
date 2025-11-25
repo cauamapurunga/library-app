@@ -192,29 +192,45 @@ No Android Studio:
 
 ## 📱 Screenshots & Demonstração
 
-### Telas Principais
+### 🔐 Login (Admin e Usuário)
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/30d8f593-b365-433f-905e-cebaffcd9121" alt="Tela de Login" width="250"/>
+</p>
 
-```
-┌─────────────┬─────────────┬─────────────┬─────────────┐
-│   🏠 Home   │  📚 Acervo  │  📅 Reservas│  👤 Perfil │
-├─────────────┼─────────────┼─────────────┼─────────────┤
-│  Destaques  │   Busca     │  Minhas     │   Editar   │
-│  Categorias │   Filtros   │  Ativas     │   Dados    │
-│  Novidades  │   Detalhes  │  Histórico  │   Configs  │
-└─────────────┴─────────────┴─────────────┴─────────────┘
-```
+---
 
-### Área Administrativa
+### 🛠️ Painel Administrativo
 
-```
-┌─────────────────┬─────────────────┬─────────────────┐
-│  📊 Dashboard   │  📚 Gestão     │  🎭 Exposições │
-├─────────────────┼─────────────────┼─────────────────┤
-│  Estatísticas   │  Adicionar      │  Criar Eventos  │
-│  Relatórios     │  Editar         │  Gerenciar      │
-│  Métricas       │  Remover        │  Analytics      │
-└─────────────────┴─────────────────┴─────────────────┘
-```
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/2a4c07d4-cdc3-4c1a-84d6-c1571ee8f698" alt="Início Admin" width="250"/>
+  <img src="https://github.com/user-attachments/assets/cdcb4cb9-78cb-4d0d-ba0a-39e645745fbe" alt="Acervo Admin" width="250"/>
+  <img src="https://github.com/user-attachments/assets/707da765-f320-4321-8091-3b925d8579bf" alt="Exposição Admin" width="250"/>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/5cfab6ea-97c8-4c55-8d2c-ba7e91116096" alt="Ver Exposição Admin" width="250"/>
+  <img src="https://github.com/user-attachments/assets/63e59f01-ab91-455c-8b52-136822328c9e" alt="Reservas Admin" width="250"/>
+  <img src="https://github.com/user-attachments/assets/d400c792-1b6c-49f7-9c8b-4ace566249da" alt="Relatórios Admin" width="250"/>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/9c0d72eb-23db-4b80-aaf2-eb83100d2f22" alt="Notificação" width="250"/>
+</p>
+
+---
+
+### 👥 Área do Usuário
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/b2bafca9-8d9d-449f-a99e-0b855ae359fd" alt="Início Usuário" width="250"/>
+  <img src="https://github.com/user-attachments/assets/12548ad3-ca24-4328-8c02-e9d69d4d13b4" alt="Exposição Usuário" width="250"/>
+  <img src="https://github.com/user-attachments/assets/fef55ed4-aa51-4eec-82d8-6a7631c6abc9" alt="Reservas Usuário" width="250"/>
+</p>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/9fc54978-79f9-46cf-bb06-a5d3365bf84f" alt="Empréstimo Usuário" width="250"/>
+  <img src="https://github.com/user-attachments/assets/91c01a10-0803-46b8-9721-6ad466182da4" alt="Acervo Usuário" width="250"/>
+</p>
 
 ---
 
@@ -294,38 +310,38 @@ app/src/main/java/com/example/uniforlibrary/
 ### Para Estudantes
 
 1. **Cadastro/Login**
-   - Abra o app e crie sua conta com e-mail institucional
-   - Ou faça login se já tiver uma conta
+    - Abra o app e crie sua conta com e-mail institucional
+    - Ou faça login se já tiver uma conta
 
 2. **Explorar o Acervo**
-   - Na tela inicial, navegue pelas categorias
-   - Use a busca para encontrar livros específicos
-   - Veja detalhes, avaliações e disponibilidade
+    - Na tela inicial, navegue pelas categorias
+    - Use a busca para encontrar livros específicos
+    - Veja detalhes, avaliações e disponibilidade
 
 3. **Fazer Reservas**
-   - Selecione um livro disponível
-   - Clique em "Reservar"
-   - Retire na biblioteca no prazo especificado
+    - Selecione um livro disponível
+    - Clique em "Reservar"
+    - Retire na biblioteca no prazo especificado
 
 4. **Usar o Chatbot**
-   - Clique no ícone do chat flutuante
-   - Faça perguntas sobre livros, horários, etc.
-   - O assistente IA responderá instantaneamente
+    - Clique no ícone do chat flutuante
+    - Faça perguntas sobre livros, horários, etc.
+    - O assistente IA responderá instantaneamente
 
 ### Para Administradores
 
 1. **Login Administrativo**
-   - Use credenciais de administrador
+    - Use credenciais de administrador
 
 2. **Gerenciar Acervo**
-   - Adicione novos livros com fotos
-   - Edite informações existentes
-   - Controle disponibilidade
+    - Adicione novos livros com fotos
+    - Edite informações existentes
+    - Controle disponibilidade
 
 3. **Acompanhar Métricas**
-   - Acesse relatórios detalhados
-   - Veja livros mais emprestados
-   - Monitore reservas pendentes
+    - Acesse relatórios detalhados
+    - Veja livros mais emprestados
+    - Monitore reservas pendentes
 
 ---
 
