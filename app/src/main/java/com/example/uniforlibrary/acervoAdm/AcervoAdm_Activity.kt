@@ -532,7 +532,7 @@ fun AddEditBookScreen(
                         isDigital = isDigital,
                         totalCopies = copies,
                         availableCopies = book?.availableCopies ?: copies,
-                        rating = book?.rating ?: 5,
+                        rating = book?.rating ?: 0f,
                         coverImageUrl = book?.coverImageUrl ?: "",
                         digitalContentUrl = book?.digitalContentUrl ?: "",
                         createdAt = book?.createdAt,
