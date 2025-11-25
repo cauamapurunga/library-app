@@ -379,9 +379,6 @@ Se este projeto foi útil para você, considere dar uma ⭐️!
 
 ---
 
-<p align="center">
-  Feito com ❤️ por Rodrigo Souza
-</p>
 
 <p align="center">
   <img src="https://img.shields.io/github/stars/seu-usuario/library-app?style=social" alt="Stars">
