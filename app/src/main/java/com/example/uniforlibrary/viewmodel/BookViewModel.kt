@@ -183,6 +183,38 @@ class BookViewModel : ViewModel() {
         }
     }
 
+    /**
+     * Sincroniza o available_copies de um livro específico
+     */
+    fun syncBookAvailability(bookId: String) {
+        viewModelScope.launch {
+            try {
+                val result = repository.syncAvailableCopies(bookId)
+                _operationResult.value = result.map { "Disponibilidade sincronizada com sucesso!" }
+            } catch (e: Exception) {
+                _operationResult.value = Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Corrige a disponibilidade de todos os livros do acervo
+     */
+    fun fixAllBooksAvailability() {
+        viewModelScope.launch {
+            try {
+                android.util.Log.d("BookViewModel", "Iniciando correção de todos os livros...")
+                val result = repository.fixAllBooksAvailability()
+                _operationResult.value = result.map { count ->
+                    "✅ $count livro(s) sincronizado(s) com sucesso!"
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("BookViewModel", "Erro ao corrigir livros", e)
+                _operationResult.value = Result.failure(e)
+            }
+        }
+    }
+
     fun clearOperationResult() {
         _operationResult.value = null
     }

@@ -415,4 +415,70 @@ class BookRepository {
             Result.failure(e)
         }
     }
+
+    /**
+     * Sincroniza available_copies com base no total_copies e empréstimos ativos
+     * Use esta função quando atualizar manualmente a quantidade de livros
+     */
+    suspend fun syncAvailableCopies(bookId: String): Result<Unit> {
+        return try {
+            val bookDoc = booksCollection.document(bookId).get().await()
+
+            if (!bookDoc.exists()) {
+                return Result.failure(Exception("Livro não encontrado"))
+            }
+
+            val totalCopies = bookDoc.getLong("total_copies")?.toInt() ?: 0
+
+            // Contar quantos empréstimos ativos existem para este livro
+            val activeLoans = db.collection("loans")
+                .whereEqualTo("book_id", bookId)
+                .whereIn("status", listOf("Ativo", "Atrasado"))
+                .get()
+                .await()
+
+            val loanedCopies = activeLoans.size()
+            val availableCopies = maxOf(0, totalCopies - loanedCopies)
+
+            // Atualizar available_copies no Firestore
+            booksCollection.document(bookId).update(
+                mapOf(
+                    "available_copies" to availableCopies,
+                    "updated_at" to Timestamp.now()
+                )
+            ).await()
+
+            android.util.Log.d("BookRepository", "📚 Sincronizado: total=$totalCopies, emprestados=$loanedCopies, disponíveis=$availableCopies")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            android.util.Log.e("BookRepository", "Erro ao sincronizar available_copies", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Corrige todos os livros do acervo, sincronizando available_copies
+     * Útil para corrigir inconsistências no banco de dados
+     */
+    suspend fun fixAllBooksAvailability(): Result<Int> {
+        return try {
+            val allBooks = booksCollection.get().await()
+            var fixedCount = 0
+
+            allBooks.documents.forEach { doc ->
+                try {
+                    syncAvailableCopies(doc.id).getOrNull()
+                    fixedCount++
+                } catch (e: Exception) {
+                    android.util.Log.e("BookRepository", "Erro ao corrigir livro ${doc.id}", e)
+                }
+            }
+
+            android.util.Log.d("BookRepository", "✅ Total de livros corrigidos: $fixedCount")
+            Result.success(fixedCount)
+        } catch (e: Exception) {
+            android.util.Log.e("BookRepository", "Erro ao corrigir disponibilidade de livros", e)
+            Result.failure(e)
+        }
+    }
 }
