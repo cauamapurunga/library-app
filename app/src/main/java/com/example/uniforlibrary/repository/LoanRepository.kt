@@ -159,11 +159,25 @@ class LoanRepository {
                 )
             ).await()
 
-            // Atualizar disponibilidade do livro
+            // Incrementar cópias disponíveis do livro
             if (loan.bookId.isNotEmpty()) {
-                booksCollection.document(loan.bookId)
-                    .update("disponivel", true)
-                    .await()
+                val bookDoc = booksCollection.document(loan.bookId).get().await()
+                if (bookDoc.exists()) {
+                    val availableCopies = bookDoc.getLong("available_copies")?.toInt() ?: 0
+                    val totalCopies = bookDoc.getLong("total_copies")?.toInt() ?: 1
+
+                    // Incrementar available_copies (não pode ser maior que total_copies)
+                    val newAvailableCopies = minOf(availableCopies + 1, totalCopies)
+
+                    booksCollection.document(loan.bookId).update(
+                        mapOf(
+                            "available_copies" to newAvailableCopies,
+                            "disponivel" to true // Manter retrocompatibilidade
+                        )
+                    ).await()
+
+                    Log.d(TAG, "📚 Livro ${loan.bookTitle} agora tem $newAvailableCopies cópia(s) disponível(is)")
+                }
             }
 
             Log.d(TAG, "✅ Empréstimo devolvido com sucesso: $loanId")
