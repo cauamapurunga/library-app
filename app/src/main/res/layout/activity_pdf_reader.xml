@@ -191,8 +191,7 @@
                     android:layout_marginEnd="8dp"
                     android:layout_weight="1"
                     android:text="Voltar"
-                    android:textColor="#666666"
-                    style="@style/Widget.Material3.Button.OutlinedButton" />
+                    android:textColor="#666666" />
 
                 <Button
                     android:id="@+id/sendRatingButton"
